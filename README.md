@@ -18,12 +18,11 @@ A self-hosted collection of everyday utilities, built with Spring Boot and Thyme
 ## Requirements
 
 - Java 21+
-- Maven 3.9+ (or use the included Gradle wrapper)
 
 ## Run locally
 
 ```bash
-./mvnw spring-boot:run
+./gradlew bootRun
 ```
 
 The app starts on [http://localhost:8730](http://localhost:8730).
