@@ -18,6 +18,7 @@ A self-hosted collection of everyday utilities, built with Spring Boot and Thyme
 ## Requirements
 
 - Java 21+
+- Gradle 9.x (wrapper included)
 
 ## Run locally
 
@@ -35,6 +36,6 @@ docker compose up -d
 
 ## Tech stack
 
-- Spring Boot 3.4
-- Thymeleaf + Bootstrap
-- Apache PDFBox, ZXing, openize-heic
+- Java 21, Gradle (Kotlin DSL)
+- Spring Boot 3.4, Thymeleaf, Bootstrap 5
+- Apache PDFBox, ZXing, openize-heic, cron-utils, java-diff-utils
