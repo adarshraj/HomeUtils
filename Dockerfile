@@ -1,17 +1,18 @@
 # syntax=docker/dockerfile:1
 # Stage 1: Build
-FROM maven:3.9-eclipse-temurin-21 AS builder
+FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
-COPY pom.xml ./
-COPY libs/repo ./libs/repo
-# Download all other dependencies
-RUN mvn dependency:go-offline -q
+COPY gradle ./gradle
+COPY gradlew ./
+COPY build.gradle.kts settings.gradle.kts ./
+COPY libs ./libs
+RUN ./gradlew dependencies --no-daemon -q
 COPY src ./src
-RUN mvn package -q -DskipTests
+RUN ./gradlew bootJar --no-daemon -q
 
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=builder /app/target/homeutils-1.0.0.jar app.jar
+COPY --from=builder /app/build/libs/HomeUtils-1.0.0.jar app.jar
 EXPOSE 8730
 ENTRYPOINT ["java", "-jar", "app.jar"]
