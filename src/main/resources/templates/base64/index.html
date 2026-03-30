@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('Base64', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">HomeUtils</a></li>
+            <li class="breadcrumb-item active">Base64</li>
+        </ol>
+    </nav>
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+
+            <!-- Text encode/decode -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-braces me-2"></i>Base64 — Text</h4>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Input</label>
+                        <textarea id="textInput" class="form-control font-monospace" rows="4"
+                                  placeholder="Enter text to encode or Base64 to decode…"></textarea>
+                    </div>
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-primary" onclick="textOp('encode')"><i class="bi bi-lock me-1"></i>Encode</button>
+                        <button class="btn btn-outline-primary" onclick="textOp('decode')"><i class="bi bi-unlock me-1"></i>Decode</button>
+                        <button class="btn btn-outline-secondary ms-auto" onclick="swapText()"><i class="bi bi-arrow-down-up me-1"></i>Swap</button>
+                    </div>
+                    <div id="textError" class="alert alert-danger d-none"></div>
+                    <div>
+                        <label class="form-label fw-semibold">Output</label>
+                        <textarea id="textOutput" class="form-control font-monospace" rows="4" readonly></textarea>
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary mt-2" onclick="copyText()"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                </div>
+            </div>
+
+            <!-- File encode -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-lock me-2"></i>Encode File → Base64</h5>
+                </div>
+                <div class="card-body p-4">
+                    <input type="file" id="encodeFile" class="form-control mb-3"/>
+                    <button class="btn btn-secondary" onclick="encodeFile()"><i class="bi bi-lock me-1"></i>Encode File</button>
+                    <div id="fileEncodeError" class="alert alert-danger mt-3 d-none"></div>
+                    <div id="fileEncodeResult" class="mt-3 d-none">
+                        <label class="form-label fw-semibold small text-muted">BASE64 OUTPUT</label>
+                        <textarea id="fileEncodeOutput" class="form-control font-monospace" rows="5" readonly></textarea>
+                        <button class="btn btn-sm btn-outline-secondary mt-2" onclick="copyFileEncode()"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File decode -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-unlock me-2"></i>Decode Base64 → File</h5>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted small">Upload a text file containing Base64, or paste directly below.</p>
+                    <form id="decodeFileForm" th:action="@{/utils/base64/decode-file}" method="post" enctype="multipart/form-data" class="mb-3">
+                        <div class="mb-3">
+                            <label class="form-label">Base64 file (.txt)</label>
+                            <input type="file" name="file" class="form-control" accept=".txt" required/>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Output filename</label>
+                            <input type="text" name="outputName" class="form-control" placeholder="decoded_file.jpg"/>
+                        </div>
+                        <button type="submit" class="btn btn-secondary"><i class="bi bi-download me-1"></i>Decode & Download</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        async function textOp(op) {
+            const input = document.getElementById('textInput').value;
+            const err = document.getElementById('textError');
+            err.classList.add('d-none');
+            const resp = await fetch('/utils/base64/' + op + '-text', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({input})
+            });
+            const data = await resp.json();
+            if (!resp.ok || data.error) { err.textContent = data.error; err.classList.remove('d-none'); return; }
+            document.getElementById('textOutput').value = data.result;
+        }
+        function swapText() {
+            const a = document.getElementById('textInput');
+            const b = document.getElementById('textOutput');
+            const tmp = a.value; a.value = b.value; b.value = tmp;
+        }
+        function copyText() { navigator.clipboard.writeText(document.getElementById('textOutput').value); }
+        function copyFileEncode() { navigator.clipboard.writeText(document.getElementById('fileEncodeOutput').value); }
+        async function encodeFile() {
+            const file = document.getElementById('encodeFile').files[0];
+            const err = document.getElementById('fileEncodeError');
+            err.classList.add('d-none');
+            if (!file) { err.textContent = 'Select a file first.'; err.classList.remove('d-none'); return; }
+            const fd = new FormData(); fd.append('file', file);
+            const resp = await fetch('/utils/base64/encode-file', {method: 'POST', body: fd});
+            const data = await resp.json();
+            if (!resp.ok || data.error) { err.textContent = data.error; err.classList.remove('d-none'); return; }
+            document.getElementById('fileEncodeOutput').value = data.result;
+            document.getElementById('fileEncodeResult').classList.remove('d-none');
+        }
+    </script>
+</th:block>
+</body>
+</html>

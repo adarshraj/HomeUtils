@@ -1,0 +1,6 @@
+services:
+  homeutils:
+    build: .
+    ports:
+      - "8730:8730"
+    restart: unless-stopped

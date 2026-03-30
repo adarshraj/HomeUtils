@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('QR Code Generator', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">HomeUtils</a></li>
+            <li class="breadcrumb-item active">QR Code Generator</li>
+        </ol>
+    </nav>
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-qr-code me-2"></i>QR Code Generator</h4>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Content</label>
+                        <textarea id="qrContent" class="form-control" rows="3"
+                                  placeholder="Enter text, URL, email…"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Size (px)</label>
+                        <input id="qrSize" type="range" class="form-range" min="128" max="800" step="64" value="300"/>
+                        <div class="text-muted small text-end"><span id="sizeLabel">300</span> px</div>
+                    </div>
+                    <button class="btn btn-primary w-100" onclick="generate()">
+                        <i class="bi bi-qr-code me-1"></i>Generate
+                    </button>
+                    <div id="errorArea" class="mt-3 alert alert-danger d-none"></div>
+
+                    <div id="resultArea" class="mt-4 text-center d-none">
+                        <img id="qrImage" src="" alt="QR Code" class="img-fluid border rounded p-2 mb-3"
+                             style="max-width:400px"/>
+                        <div class="d-flex gap-2 justify-content-center">
+                            <button class="btn btn-outline-primary" onclick="downloadQr()">
+                                <i class="bi bi-download me-1"></i>Download PNG
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        let lastPngBase64 = '';
+        let lastContent = '';
+        let lastSize = 300;
+        document.getElementById('qrSize').addEventListener('input', function() {
+            document.getElementById('sizeLabel').textContent = this.value;
+        });
+        async function generate() {
+            const content = document.getElementById('qrContent').value.trim();
+            const size = parseInt(document.getElementById('qrSize').value);
+            const err = document.getElementById('errorArea');
+            const res = document.getElementById('resultArea');
+            err.classList.add('d-none');
+
+            const resp = await fetch('/utils/qr/generate', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({content, size: String(size)})
+            });
+            const data = await resp.json();
+            if (!resp.ok || data.error) { err.textContent = data.error; err.classList.remove('d-none'); return; }
+            document.getElementById('qrImage').src = data.dataUrl;
+            lastPngBase64 = data.pngBase64;
+            lastContent = content;
+            lastSize = size;
+            res.classList.remove('d-none');
+        }
+        async function downloadQr() {
+            const resp = await fetch('/utils/qr/download', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({content: lastContent, size: String(lastSize)})
+            });
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = 'qrcode.png'; a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</th:block>
+</body>
+</html>

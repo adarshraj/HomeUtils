@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('Dashboard', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <h2 class="mb-1">HomeUtils</h2>
+    <p class="text-muted mb-4">Your personal collection of handy utilities.</p>
+    <div class="row g-3">
+        <div class="col-sm-6 col-md-4 col-lg-3" th:each="util : ${utilities}">
+            <a th:href="@{${util.route}}" class="text-decoration-none">
+                <div class="card utility-card h-100">
+                    <div class="card-body text-center py-4">
+                        <i th:class="'bi ' + ${util.iconClass} + ' fs-1 text-primary mb-3 d-block'"></i>
+                        <h5 class="card-title" th:text="${util.name}">Utility</h5>
+                        <p class="card-text text-muted small" th:text="${util.description}">Description</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>
