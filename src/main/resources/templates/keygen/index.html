@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('Key Generator', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">HomeUtils</a></li>
+            <li class="breadcrumb-item active">Key Generator</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-key-fill me-2"></i>Key Generator</h4>
+                </div>
+                <div class="card-body p-4">
+
+                    <!-- Key Type Selection -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Key Type</label>
+                        <select id="keyType" class="form-select" onchange="onTypeChange()">
+                            <optgroup label="HMAC Secrets">
+                                <option value="hmac-sha256">HMAC-SHA256 (256-bit)</option>
+                                <option value="hmac-sha384">HMAC-SHA384 (384-bit)</option>
+                                <option value="hmac-sha512">HMAC-SHA512 (512-bit)</option>
+                            </optgroup>
+                            <optgroup label="Random Keys">
+                                <option value="random" selected>Random Secret (configurable)</option>
+                            </optgroup>
+                            <optgroup label="UUID">
+                                <option value="uuid">UUID v4</option>
+                                <option value="uuid-nodash">UUID v4 (no dashes)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <!-- Random key options -->
+                    <div id="randomOptions">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Length (bytes)</label>
+                                <select id="keyBytes" class="form-select">
+                                    <option value="16">16 bytes (128-bit)</option>
+                                    <option value="24">24 bytes (192-bit)</option>
+                                    <option value="32" selected>32 bytes (256-bit)</option>
+                                    <option value="48">48 bytes (384-bit)</option>
+                                    <option value="64">64 bytes (512-bit)</option>
+                                    <option value="128">128 bytes (1024-bit)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Encoding</label>
+                                <select id="keyEncoding" class="form-select">
+                                    <option value="hex">Hex</option>
+                                    <option value="base64" selected>Base64</option>
+                                    <option value="base64url">Base64 URL-safe</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Count -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Count</label>
+                        <input id="keyCount" type="number" class="form-control" value="1" min="1" max="50" style="max-width:120px"/>
+                    </div>
+
+                    <button class="btn btn-primary w-100" onclick="generate()">
+                        <i class="bi bi-lightning-fill me-1"></i>Generate
+                    </button>
+
+                    <div id="errorArea" class="mt-3 alert alert-danger d-none"></div>
+
+                    <!-- Results -->
+                    <div id="resultArea" class="mt-4 d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0">Generated Keys</h5>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="copyAll()">
+                                <i class="bi bi-clipboard me-1"></i>Copy All
+                            </button>
+                        </div>
+                        <div id="keyList"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick generators -->
+            <div class="row mt-4">
+                <div class="col-md-4 mb-3">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-shield-lock fs-2 text-success"></i>
+                            <h6 class="mt-2">JWT Secret</h6>
+                            <p class="text-muted small mb-2">256-bit HMAC-SHA256 key</p>
+                            <button class="btn btn-sm btn-outline-success" onclick="quickGen('hmac-sha256')">Generate</button>
+                            <div class="quick-result mt-2 small text-break" id="quick-hmac-sha256"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-fingerprint fs-2 text-primary"></i>
+                            <h6 class="mt-2">Session Key</h6>
+                            <p class="text-muted small mb-2">64-byte random Base64</p>
+                            <button class="btn btn-sm btn-outline-primary" onclick="quickGen('session')">Generate</button>
+                            <div class="quick-result mt-2 small text-break" id="quick-session"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <i class="bi bi-hash fs-2 text-warning"></i>
+                            <h6 class="mt-2">UUID v4</h6>
+                            <p class="text-muted small mb-2">Random UUID</p>
+                            <button class="btn btn-sm btn-outline-warning" onclick="quickGen('uuid')">Generate</button>
+                            <div class="quick-result mt-2 small text-break" id="quick-uuid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function onTypeChange() {
+            const type = document.getElementById('keyType').value;
+            document.getElementById('randomOptions').style.display = type === 'random' ? '' : 'none';
+        }
+        onTypeChange();
+
+        async function generate() {
+            const type = document.getElementById('keyType').value;
+            const count = parseInt(document.getElementById('keyCount').value) || 1;
+            const encoding = document.getElementById('keyEncoding').value;
+            const bytes = parseInt(document.getElementById('keyBytes').value);
+            const err = document.getElementById('errorArea');
+            err.classList.add('d-none');
+
+            const resp = await fetch('/utils/keygen/generate', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({type, count: String(count), encoding, bytes: String(bytes)})
+            });
+            const data = await resp.json();
+            if (!resp.ok || data.error) { err.textContent = data.error; err.classList.remove('d-none'); return; }
+
+            const list = document.getElementById('keyList');
+            list.innerHTML = '';
+            data.keys.forEach((key, i) => {
+                const row = document.createElement('div');
+                row.className = 'input-group mb-2';
+                row.innerHTML = `
+                    <input type="text" class="form-control font-monospace" value="${key}" readonly/>
+                    <button class="btn btn-outline-secondary" onclick="copyOne(this)" title="Copy">
+                        <i class="bi bi-clipboard"></i>
+                    </button>`;
+                list.appendChild(row);
+            });
+            document.getElementById('resultArea').classList.remove('d-none');
+        }
+
+        function copyOne(btn) {
+            const input = btn.closest('.input-group').querySelector('input');
+            navigator.clipboard.writeText(input.value);
+            btn.innerHTML = '<i class="bi bi-check"></i>';
+            setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i>', 1500);
+        }
+
+        function copyAll() {
+            const inputs = document.querySelectorAll('#keyList input');
+            const text = Array.from(inputs).map(i => i.value).join('\n');
+            navigator.clipboard.writeText(text);
+        }
+
+        async function quickGen(preset) {
+            let body;
+            if (preset === 'session') body = {type: 'random', count: '1', encoding: 'base64', bytes: '64'};
+            else body = {type: preset, count: '1', encoding: 'base64', bytes: '32'};
+
+            const resp = await fetch('/utils/keygen/generate', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            });
+            const data = await resp.json();
+            if (data.keys && data.keys.length) {
+                const el = document.getElementById('quick-' + preset);
+                el.textContent = data.keys[0];
+                el.style.cursor = 'pointer';
+                el.onclick = () => { navigator.clipboard.writeText(data.keys[0]); el.textContent = 'Copied!'; setTimeout(() => el.textContent = data.keys[0], 1500); };
+            }
+        }
+    </script>
+</th:block>
+</body>
+</html>
