@@ -51,6 +51,15 @@ dependencies {
     // YAML support
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml")
 
+    // Markdown parsing
+    implementation("com.vladsch.flexmark:flexmark-all:0.64.8")
+
+    // DOCX support
+    implementation("org.docx4j:docx4j-JAXB-ReferenceImpl:11.5.1")
+
+    // HTML to PDF via OpenHTMLtoPDF
+    implementation("com.openhtmltopdf:openhtmltopdf-pdfbox:1.0.10")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 

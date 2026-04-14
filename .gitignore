@@ -4,3 +4,5 @@ build/
 *.class
 *.log
 .idea/
+.vscode/
+bin/
