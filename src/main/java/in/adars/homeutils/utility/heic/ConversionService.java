@@ -7,7 +7,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -15,7 +14,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 @Service
@@ -87,34 +85,20 @@ public class ConversionService {
         List<File> heicFiles = new ArrayList<>();
         boolean hasPassword = zipPassword != null && !zipPassword.isBlank();
 
-        if (hasPassword) {
-            // Use Zip4j for password-protected ZIPs
-            File zipTemp = tempDir.resolve("upload.zip").toFile();
-            upload.transferTo(zipTemp);
-            Path extractDir = tempDir.resolve("extracted");
-            Files.createDirectories(extractDir);
-            try (ZipFile zf = new ZipFile(zipTemp, zipPassword.toCharArray())) {
-                zf.extractAll(extractDir.toString());
-            } catch (Exception e) {
-                throw new IOException("Failed to extract ZIP (wrong password?): " + e.getMessage(), e);
-            }
-            collectHeicFromDir(extractDir.toFile(), heicFiles);
-        } else {
-            // Use JDK ZipInputStream for unencrypted ZIPs
-            try (InputStream in = upload.getInputStream();
-                 ZipInputStream zis = new ZipInputStream(in)) {
-                ZipEntry entry;
-                while ((entry = zis.getNextEntry()) != null) {
-                    if (!entry.isDirectory() && heicConverter.isHeicFile(new File(entry.getName()))) {
-                        String name = sanitize(new File(entry.getName()).getName());
-                        File dest = tempDir.resolve(name).toFile();
-                        Files.copy(zis, dest.toPath());
-                        heicFiles.add(dest);
-                    }
-                    zis.closeEntry();
-                }
-            }
+        File zipTemp = tempDir.resolve("upload.zip").toFile();
+        upload.transferTo(zipTemp);
+        Path extractDir = tempDir.resolve("extracted");
+        Files.createDirectories(extractDir);
+
+        try (ZipFile zf = hasPassword
+                ? new ZipFile(zipTemp, zipPassword.toCharArray())
+                : new ZipFile(zipTemp)) {
+            zf.extractAll(extractDir.toString());
+        } catch (Exception e) {
+            String msg = hasPassword ? "Failed to extract ZIP (wrong password?): " : "Failed to extract ZIP: ";
+            throw new IOException(msg + e.getMessage(), e);
         }
+        collectHeicFromDir(extractDir.toFile(), heicFiles);
         return heicFiles;
     }
 

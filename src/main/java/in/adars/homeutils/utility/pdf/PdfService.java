@@ -1,10 +1,13 @@
 package in.adars.homeutils.utility.pdf;
 
 import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.io.RandomAccessReadBuffer;
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.image.JPEGFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.rendering.ImageType;
@@ -89,6 +92,68 @@ public class PdfService {
     }
 
     public record PdfToImagesResult(String fileName, byte[] data, boolean isZip) {}
+
+    /** Merge multiple PDFs into a single PDF, preserving order. */
+    public byte[] merge(List<MultipartFile> files) throws IOException {
+        PDFMergerUtility merger = new PDFMergerUtility();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        merger.setDestinationStream(baos);
+        for (MultipartFile f : files) {
+            if (f.isEmpty()) continue;
+            merger.addSource(new RandomAccessReadBuffer(f.getBytes()));
+        }
+        merger.mergeDocuments(null);
+        return baos.toByteArray();
+    }
+
+    /** Split a PDF into individual single-page PDFs packaged as a ZIP. */
+    public byte[] splitToZip(MultipartFile file) throws IOException {
+        try (PDDocument src = Loader.loadPDF(file.getBytes())) {
+            String base = stripExtension(file.getOriginalFilename());
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+                int pageCount = src.getNumberOfPages();
+                for (int i = 0; i < pageCount; i++) {
+                    try (PDDocument page = new PDDocument()) {
+                        page.addPage(src.getPage(i));
+                        ByteArrayOutputStream pageOut = new ByteArrayOutputStream();
+                        page.save(pageOut);
+                        zos.putNextEntry(new ZipEntry(base + "_page" + (i + 1) + ".pdf"));
+                        zos.write(pageOut.toByteArray());
+                        zos.closeEntry();
+                    }
+                }
+            }
+            return baos.toByteArray();
+        }
+    }
+
+    /**
+     * Compress a PDF by rasterizing each page to JPEG at the given DPI and quality.
+     * Trade-off: text becomes non-selectable; great for image-heavy/scanned PDFs.
+     */
+    public byte[] compress(MultipartFile file, int dpi, float jpegQuality) throws IOException {
+        try (PDDocument src = Loader.loadPDF(file.getBytes());
+             PDDocument out = new PDDocument();
+             ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+
+            PDFRenderer renderer = new PDFRenderer(src);
+            int pageCount = src.getNumberOfPages();
+            for (int i = 0; i < pageCount; i++) {
+                BufferedImage image = renderer.renderImageWithDPI(i, dpi, ImageType.RGB);
+                PDImageXObject pdImage = JPEGFactory.createFromImage(out, image, jpegQuality);
+
+                PDRectangle original = src.getPage(i).getMediaBox();
+                PDPage newPage = new PDPage(new PDRectangle(original.getWidth(), original.getHeight()));
+                out.addPage(newPage);
+                try (PDPageContentStream cs = new PDPageContentStream(out, newPage)) {
+                    cs.drawImage(pdImage, 0, 0, original.getWidth(), original.getHeight());
+                }
+            }
+            out.save(baos);
+            return baos.toByteArray();
+        }
+    }
 
     private String stripExtension(String name) {
         if (name == null) return "output";

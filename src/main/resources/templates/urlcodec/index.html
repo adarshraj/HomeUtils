@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('URL Encode / Decode', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">HomeUtils</a></li>
+            <li class="breadcrumb-item active">URL Encode / Decode</li>
+        </ol>
+    </nav>
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-link-45deg me-2"></i>URL Encode / Decode</h4>
+                </div>
+                <div class="card-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Input</label>
+                        <textarea id="input" class="form-control font-monospace" rows="4"
+                                  placeholder="Paste text or a URL-encoded string…"></textarea>
+                    </div>
+                    <div class="d-flex gap-2 mb-3">
+                        <button class="btn btn-primary flex-fill" onclick="run('encode')"><i class="bi bi-lock me-1"></i>Encode</button>
+                        <button class="btn btn-outline-primary flex-fill" onclick="run('decode')"><i class="bi bi-unlock me-1"></i>Decode</button>
+                    </div>
+                    <div id="errorArea" class="alert alert-danger d-none"></div>
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold">Result</label>
+                        <textarea id="output" class="form-control font-monospace" rows="4" readonly></textarea>
+                    </div>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="copyOut()"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        async function run(mode) {
+            const input = document.getElementById('input').value;
+            const err = document.getElementById('errorArea'); err.classList.add('d-none');
+            const resp = await fetch('/utils/urlcodec/' + mode, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({input})
+            });
+            const data = await resp.json();
+            if (!resp.ok || data.error) { err.textContent = data.error || 'Error'; err.classList.remove('d-none'); return; }
+            document.getElementById('output').value = data.result;
+        }
+        function copyOut() { navigator.clipboard.writeText(document.getElementById('output').value); }
+    </script>
+</th:block>
+</body>
+</html>

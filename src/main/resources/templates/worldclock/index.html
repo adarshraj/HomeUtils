@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('World Clock', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">HomeUtils</a></li>
+            <li class="breadcrumb-item active">World Clock</li>
+        </ol>
+    </nav>
+
+    <style>
+        .wc-toolbar {
+            display: flex; flex-wrap: wrap; gap: .6rem; align-items: center;
+            background: var(--surface); border: 1px solid var(--border);
+            padding: .85rem 1rem; border-radius: var(--radius-lg);
+            backdrop-filter: blur(12px);
+            margin-bottom: 1rem;
+        }
+        .wc-toolbar .wc-date-picker {
+            background: rgba(8,6,18,.6); border: 1px solid var(--border);
+            color: var(--text); border-radius: var(--radius-md);
+            padding: .45rem .7rem; font-size: .85rem; color-scheme: dark;
+        }
+        .wc-add {
+            position: relative; flex: 1; min-width: 240px;
+        }
+        .wc-add input {
+            width: 100%; background: rgba(8,6,18,.6);
+            border: 1px solid var(--border); color: var(--text);
+            border-radius: var(--radius-md); padding: .5rem .8rem .5rem 2.2rem;
+            font-size: .88rem;
+        }
+        .wc-add i.bi-search { position: absolute; left: .8rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        .wc-add .suggestions {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+            background: #14122a; border: 1px solid var(--border-hi);
+            border-radius: var(--radius-md); max-height: 280px; overflow-y: auto;
+            z-index: 20; box-shadow: 0 20px 50px -20px rgba(0,0,0,.7);
+            display: none;
+        }
+        .wc-add .suggestions.open { display: block; }
+        .wc-add .suggestions div {
+            padding: .5rem .8rem; font-size: .85rem; cursor: pointer; color: var(--text);
+            border-bottom: 1px solid rgba(255,255,255,.04);
+        }
+        .wc-add .suggestions div:hover, .wc-add .suggestions div.active { background: rgba(168,85,247,.18); }
+
+        .wc-grid {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); backdrop-filter: blur(12px);
+            overflow: hidden;
+        }
+        .wc-row {
+            display: grid;
+            grid-template-columns: 230px 1fr 36px;
+            align-items: stretch;
+            border-bottom: 1px solid var(--border);
+        }
+        .wc-row:last-child { border-bottom: none; }
+
+        .wc-city {
+            padding: .85rem 1rem;
+            display: flex; align-items: center; gap: .65rem;
+            border-right: 1px solid var(--border);
+            min-width: 0;
+        }
+        .wc-city .handle { color: var(--text-muted); cursor: grab; }
+        .wc-city .info { min-width: 0; flex: 1; }
+        .wc-city .name { font-weight: 600; font-size: .9rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wc-city .meta { font-size: .72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .wc-city .now {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1rem; font-weight: 600; color: var(--text);
+            line-height: 1;
+        }
+        .wc-city .now .ampm { font-size: .65rem; color: var(--text-muted); margin-left: .2rem; }
+
+        .wc-hours {
+            display: grid;
+            grid-template-columns: repeat(24, 1fr);
+            min-width: 0;
+        }
+        .wc-cell {
+            padding: .45rem 0;
+            text-align: center;
+            font-size: .72rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-dim);
+            border-right: 1px solid rgba(255,255,255,.04);
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background .1s;
+        }
+        .wc-cell:last-child { border-right: none; }
+        .wc-cell .sub { display: block; font-size: .58rem; color: var(--text-muted); line-height: 1; margin-top: 2px; }
+        .wc-cell:hover { background: rgba(255,255,255,.05); }
+
+        /* Time-of-day tint */
+        .wc-cell.night    { background: rgba(30,27,75,.55);  color: #9ca3af; }
+        .wc-cell.early    { background: rgba(99,102,241,.20); color: #c7d2fe; }
+        .wc-cell.work     { background: rgba(34,211,238,.14); color: #cffafe; }
+        .wc-cell.evening  { background: rgba(168,85,247,.20); color: #e9d5ff; }
+
+        .wc-cell.selected {
+            background: var(--grad-brand) !important;
+            color: #fff !important;
+            box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+        }
+        .wc-cell.selected .sub { color: rgba(255,255,255,.85); }
+
+        .wc-weekstrip {
+            display: grid;
+            grid-template-columns: 230px 1fr 36px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            backdrop-filter: blur(10px);
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+        .wc-weekstrip .lbl {
+            padding: .55rem 1rem;
+            font-size: .68rem;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            border-right: 1px solid var(--border);
+            display: flex; align-items: center;
+        }
+        .wc-weekstrip .days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+        }
+        .wc-day {
+            padding: .55rem .5rem;
+            text-align: center;
+            cursor: pointer;
+            border-right: 1px solid rgba(255,255,255,.04);
+            transition: background .15s;
+            user-select: none;
+        }
+        .wc-day:last-child { border-right: none; }
+        .wc-day:hover { background: rgba(255,255,255,.05); }
+        .wc-day .dow { font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+        .wc-day .dnum { font-family: 'JetBrains Mono', monospace; font-size: .95rem; font-weight: 600; color: var(--text); margin-top: 2px; }
+        .wc-day.weekend {
+            background-image: repeating-linear-gradient(
+                135deg,
+                rgba(244,114,182,.16) 0 6px,
+                rgba(244,114,182,.04) 6px 12px
+            );
+        }
+        .wc-day.weekend .dow { color: #fbcfe8; }
+        .wc-day.today .dnum::after {
+            content: ''; display: block;
+            width: 4px; height: 4px; border-radius: 50%;
+            background: var(--brand-3); margin: 3px auto 0;
+            box-shadow: 0 0 8px var(--brand-3);
+        }
+        .wc-day.selected {
+            background: var(--grad-brand);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.2);
+        }
+        .wc-day.selected .dow, .wc-day.selected .dnum { color: #fff; }
+
+        .wc-weekstrip-nav {
+            display: flex; align-items: center; justify-content: center;
+            border-left: 1px solid var(--border);
+        }
+        .wc-weekstrip-nav button {
+            background: transparent; border: none;
+            color: var(--text-dim); cursor: pointer;
+            padding: .25rem .35rem; border-radius: 6px;
+        }
+        .wc-weekstrip-nav button:hover { background: rgba(255,255,255,.08); color: var(--text); }
+
+        .wc-cell.weekend {
+            background-image: repeating-linear-gradient(
+                135deg,
+                rgba(244,114,182,.18) 0 6px,
+                rgba(244,114,182,.06) 6px 12px
+            );
+            color: #fbcfe8;
+        }
+        .wc-cell.weekend.selected { background-image: none; }
+
+        .wc-cell.daychange::before {
+            content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+            width: 2px; background: var(--brand-3);
+        }
+
+        .wc-remove {
+            display: flex; align-items: center; justify-content: center;
+            border-left: 1px solid var(--border);
+            color: var(--text-muted); cursor: pointer;
+            transition: color .15s, background .15s;
+        }
+        .wc-remove:hover { color: var(--danger); background: rgba(248,113,113,.08); }
+
+        .wc-header {
+            display: grid;
+            grid-template-columns: 230px 1fr 36px;
+            background: rgba(8,6,18,.35);
+            border-bottom: 1px solid var(--border);
+            font-size: .68rem;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .wc-header .lbl { padding: .6rem 1rem; border-right: 1px solid var(--border); }
+        .wc-header .hhdr { display: grid; grid-template-columns: repeat(24,1fr); }
+        .wc-header .hhdr span { padding: .55rem 0; text-align: center; border-right: 1px solid rgba(255,255,255,.04); }
+
+        .wc-empty { padding: 3rem; text-align: center; color: var(--text-muted); }
+        .wc-hint { font-size: .78rem; color: var(--text-muted); margin-top: .75rem; }
+
+        .wc-row.dragover { outline: 2px dashed rgba(168,85,247,.5); outline-offset: -3px; }
+    </style>
+
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+            <h3 class="mb-1">World Clock</h3>
+            <p class="text-muted mb-0" style="font-size:.9rem">Compare times across cities. Click any hour to lock the time across all rows.</p>
+        </div>
+    </div>
+
+    <div class="wc-toolbar">
+        <div class="wc-add">
+            <i class="bi bi-search"></i>
+            <input id="wcSearch" type="text" placeholder="Add a city or timezone (e.g. Tokyo, America/New_York)…" autocomplete="off"/>
+            <div class="suggestions" id="wcSuggest"></div>
+        </div>
+        <input id="wcDate" type="date" class="wc-date-picker"/>
+        <button class="btn btn-outline-secondary btn-sm" id="wcNow" type="button"><i class="bi bi-crosshair me-1"></i>Now</button>
+        <button class="btn btn-outline-secondary btn-sm" id="wcFormat" type="button" data-mode="24"><i class="bi bi-clock me-1"></i>24h</button>
+        <button class="btn btn-outline-secondary btn-sm" id="wcWeekend" type="button" title="Highlight weekends"><i class="bi bi-calendar-week me-1"></i>Weekends</button>
+        <button class="btn btn-outline-secondary btn-sm" id="wcReset" type="button" title="Reset to defaults"><i class="bi bi-arrow-counterclockwise"></i></button>
+    </div>
+
+    <div class="wc-weekstrip" id="wcWeek">
+        <div class="lbl">Week</div>
+        <div class="days" id="wcWeekDays"></div>
+        <div class="wc-weekstrip-nav">
+            <button type="button" id="wcWeekPrev" title="Previous week"><i class="bi bi-chevron-left"></i></button>
+            <button type="button" id="wcWeekNext" title="Next week"><i class="bi bi-chevron-right"></i></button>
+        </div>
+    </div>
+
+    <div class="wc-grid">
+        <div class="wc-header">
+            <div class="lbl">City / Zone</div>
+            <div class="hhdr" id="wcHdr"></div>
+            <div></div>
+        </div>
+        <div id="wcBody"></div>
+    </div>
+    <div class="wc-hint"><i class="bi bi-info-circle me-1"></i>Drag the <i class="bi bi-grip-vertical"></i> handle to reorder. Dates & cities persist in your browser.</div>
+
+    <script th:inline="javascript">
+    (function () {
+        const ALL_ZONES = /*[[${zones}]]*/ [];
+        const LS_KEY = 'homeutils.worldclock.v1';
+
+        const state = (() => {
+            const defaults = () => {
+                const browser = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+                return { zones: Array.from(new Set([browser, 'UTC', 'America/New_York', 'Europe/London', 'Asia/Tokyo'])), mode: '24', selectedHour: null, weekends: true };
+            };
+            try {
+                const s = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+                if (s && Array.isArray(s.zones)) return Object.assign(defaults(), s);
+            } catch (e) {}
+            return defaults();
+        })();
+
+        const save = () => localStorage.setItem(LS_KEY, JSON.stringify(state));
+
+        // --- helpers ----------------------------------------------------------
+        // Given a reference date (YYYY-MM-DD in a chosen "base" timezone) and an hour,
+        // we need to map that hour to each other timezone. Approach: pick an anchor
+        // Instant corresponding to (selectedDate, selectedHour) in the *first* zone
+        // (user's primary), then for every row show 24 hour columns relative to the
+        // midnight-of-that-anchor-date in THAT row's timezone.
+
+        function getOffsetMinutes(zone, instant) {
+            // Get the offset in minutes for a given zone at a given instant
+            const dtf = new Intl.DateTimeFormat('en-US', {
+                timeZone: zone, timeZoneName: 'shortOffset'
+            });
+            const parts = dtf.formatToParts(instant);
+            const tz = parts.find(p => p.type === 'timeZoneName')?.value || 'GMT';
+            const m = tz.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+            if (!m) return 0;
+            const sign = m[1] === '-' ? -1 : 1;
+            return sign * (parseInt(m[2], 10) * 60 + (m[3] ? parseInt(m[3], 10) : 0));
+        }
+
+        function zoneShortName(zone, instant) {
+            try {
+                const p = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'short' }).formatToParts(instant);
+                return p.find(x => x.type === 'timeZoneName')?.value || '';
+            } catch (e) { return ''; }
+        }
+
+        function formatHour(h, mode) {
+            if (mode === '12') {
+                const am = h < 12;
+                let hh = h % 12; if (hh === 0) hh = 12;
+                return { h: String(hh), sub: am ? 'am' : 'pm' };
+            }
+            return { h: String(h).padStart(2,'0'), sub: '' };
+        }
+
+        function bucket(h) {
+            if (h < 6 || h >= 22) return 'night';
+            if (h < 9) return 'early';
+            if (h < 18) return 'work';
+            return 'evening';
+        }
+
+        // Build the anchor: an Instant representing (dateStr, selectedHour:00) in the primary timezone
+        function anchorInstant() {
+            const primary = state.zones[0];
+            const dateStr = document.getElementById('wcDate').value;
+            const hour = state.selectedHour ?? new Date().getHours();
+            // Guess a naive instant, then correct by offset at that instant in the primary zone
+            const [y,m,d] = dateStr.split('-').map(Number);
+            const guess = new Date(Date.UTC(y, m-1, d, hour, 0, 0));
+            // compute primary offset at 'guess'
+            const off = getOffsetMinutes(primary, guess);
+            // actual instant = guess - offset (because guess we built as if it were UTC, but it was local primary)
+            return new Date(guess.getTime() - off * 60000);
+        }
+
+        // For a given zone and anchor instant, compute midnight-of-the-anchor-date in that zone
+        function zoneMidnightInstant(zone, anchor) {
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: zone, year:'numeric', month:'2-digit', day:'2-digit',
+                hour:'2-digit', hour12:false
+            }).formatToParts(anchor);
+            const y = +parts.find(p=>p.type==='year').value;
+            const mo = +parts.find(p=>p.type==='month').value;
+            const da = +parts.find(p=>p.type==='day').value;
+            // Construct an instant corresponding to that zone's midnight
+            const guess = new Date(Date.UTC(y, mo-1, da, 0, 0, 0));
+            const off = getOffsetMinutes(zone, guess);
+            return new Date(guess.getTime() - off * 60000);
+        }
+
+        function parseDateInput() {
+            const s = document.getElementById('wcDate').value; // yyyy-mm-dd
+            const [y,m,d] = s.split('-').map(Number);
+            return new Date(y, m-1, d);
+        }
+        function toDateInput(d) {
+            const p = (n) => String(n).padStart(2,'0');
+            return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+        }
+        function startOfWeek(d) {
+            const x = new Date(d);
+            const dow = (x.getDay() + 6) % 7; // Mon=0..Sun=6
+            x.setDate(x.getDate() - dow);
+            x.setHours(0,0,0,0);
+            return x;
+        }
+        function renderWeekStrip() {
+            const host = document.getElementById('wcWeekDays');
+            host.innerHTML = '';
+            const selected = parseDateInput();
+            const weekStart = startOfWeek(selected);
+            const today = new Date(); today.setHours(0,0,0,0);
+            const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+            for (let i = 0; i < 7; i++) {
+                const day = new Date(weekStart);
+                day.setDate(day.getDate() + i);
+                const chip = document.createElement('div');
+                chip.className = 'wc-day';
+                if (i >= 5) chip.classList.add('weekend');
+                if (+day === +today) chip.classList.add('today');
+                if (+day === +selected) chip.classList.add('selected');
+                chip.innerHTML = `<div class="dow">${DOW[i]}</div><div class="dnum">${day.getDate()}</div>`;
+                chip.addEventListener('click', () => {
+                    document.getElementById('wcDate').value = toDateInput(day);
+                    save(); renderWeekStrip(); render();
+                });
+                host.appendChild(chip);
+            }
+        }
+        document.getElementById('wcWeekPrev').addEventListener('click', () => {
+            const d = parseDateInput(); d.setDate(d.getDate() - 7);
+            document.getElementById('wcDate').value = toDateInput(d);
+            save(); renderWeekStrip(); render();
+        });
+        document.getElementById('wcWeekNext').addEventListener('click', () => {
+            const d = parseDateInput(); d.setDate(d.getDate() + 7);
+            document.getElementById('wcDate').value = toDateInput(d);
+            save(); renderWeekStrip(); render();
+        });
+
+        function renderHeader() {
+            const hdr = document.getElementById('wcHdr');
+            hdr.innerHTML = '';
+            for (let i = 0; i < 24; i++) {
+                const s = document.createElement('span');
+                const { h } = formatHour(i, state.mode);
+                s.textContent = h;
+                hdr.appendChild(s);
+            }
+        }
+
+        function render() {
+            const body = document.getElementById('wcBody');
+            if (!state.zones.length) {
+                body.innerHTML = '<div class="wc-empty"><i class="bi bi-globe fs-3 d-block mb-2"></i>Add a city above to start.</div>';
+                return;
+            }
+            const anchor = anchorInstant();
+            body.innerHTML = '';
+            state.zones.forEach((zone, idx) => {
+                const row = document.createElement('div');
+                row.className = 'wc-row';
+                row.dataset.idx = idx;
+                row.draggable = true;
+
+                const midnight = zoneMidnightInstant(zone, anchor);
+
+                // current-time in zone
+                const nowInZone = new Intl.DateTimeFormat('en-US', {
+                    timeZone: zone,
+                    hour: '2-digit', minute: '2-digit',
+                    hour12: state.mode === '12'
+                }).format(new Date());
+
+                const dateInZone = new Intl.DateTimeFormat('en-US', {
+                    timeZone: zone, weekday:'short', month:'short', day:'numeric'
+                }).format(anchor);
+
+                const city = zone.split('/').pop().replace(/_/g,' ');
+                const shortTz = zoneShortName(zone, anchor);
+                const offMin = getOffsetMinutes(zone, anchor);
+                const sign = offMin >= 0 ? '+' : '-';
+                const offH = Math.floor(Math.abs(offMin)/60);
+                const offM = Math.abs(offMin) % 60;
+                const offStr = `UTC${sign}${String(offH).padStart(2,'0')}${offM?':'+String(offM).padStart(2,'0'):''}`;
+
+                row.innerHTML = `
+                    <div class="wc-city">
+                        <i class="bi bi-grip-vertical handle"></i>
+                        <div class="info">
+                            <div class="name">${city}</div>
+                            <div class="meta">${dateInZone} · ${shortTz || offStr}</div>
+                        </div>
+                        <div class="now">${nowInZone}</div>
+                    </div>
+                    <div class="wc-hours"></div>
+                    <div class="wc-remove" title="Remove"><i class="bi bi-x-lg"></i></div>
+                `;
+
+                const hoursEl = row.querySelector('.wc-hours');
+                // What's the selected hour shown in this zone?
+                // At selected hour in primary, that instant is 'anchor'. In this zone: hour diff from midnight.
+                const selectedHourInZone = Math.round((anchor - midnight) / 3600000);
+
+                for (let i = 0; i < 24; i++) {
+                    const cell = document.createElement('div');
+                    // absolute hour in this zone's local time for this column
+                    const localHour = i; // column i represents hour i of the zone's local day
+                    cell.className = 'wc-cell ' + bucket(localHour);
+                    const { h, sub } = formatHour(localHour, state.mode);
+                    // Show date change indicator at column 0 and when wrapping
+                    const inst = new Date(midnight.getTime() + i * 3600000);
+                    const dayStr = new Intl.DateTimeFormat('en-US', { timeZone: zone, day:'2-digit' }).format(inst);
+                    if (localHour === 0) cell.classList.add('daychange');
+                    if (state.weekends) {
+                        const wd = new Intl.DateTimeFormat('en-US', { timeZone: zone, weekday: 'short' }).format(inst);
+                        if (wd === 'Sat' || wd === 'Sun') cell.classList.add('weekend');
+                    }
+                    cell.innerHTML = `${h}${sub?'<span class="ampm">'+sub+'</span>':''}<span class="sub">${dayStr}</span>`;
+                    if (localHour === selectedHourInZone) cell.classList.add('selected');
+                    cell.addEventListener('click', () => {
+                        // User clicked column `localHour` in row `idx`. Translate to primary hour.
+                        const clickedInstant = new Date(midnight.getTime() + localHour * 3600000);
+                        // set the picker's date & selected hour to what this instant is in primary zone
+                        const primary = state.zones[0];
+                        const p = new Intl.DateTimeFormat('en-US', {
+                            timeZone: primary, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', hour12:false
+                        }).formatToParts(clickedInstant);
+                        const y = p.find(x=>x.type==='year').value;
+                        const mo = p.find(x=>x.type==='month').value;
+                        const da = p.find(x=>x.type==='day').value;
+                        let hh = +p.find(x=>x.type==='hour').value;
+                        if (hh === 24) hh = 0;
+                        document.getElementById('wcDate').value = `${y}-${mo}-${da}`;
+                        state.selectedHour = hh;
+                        save(); renderWeekStrip(); render();
+                    });
+                    hoursEl.appendChild(cell);
+                }
+
+                row.querySelector('.wc-remove').addEventListener('click', () => {
+                    state.zones.splice(idx, 1);
+                    save(); render();
+                });
+
+                // Drag reorder
+                row.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', idx); row.style.opacity = '.4'; });
+                row.addEventListener('dragend', () => { row.style.opacity = ''; });
+                row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('dragover'); });
+                row.addEventListener('dragleave', () => row.classList.remove('dragover'));
+                row.addEventListener('drop', e => {
+                    e.preventDefault();
+                    row.classList.remove('dragover');
+                    const from = +e.dataTransfer.getData('text/plain');
+                    const to = idx;
+                    if (from === to) return;
+                    const [moved] = state.zones.splice(from, 1);
+                    state.zones.splice(to, 0, moved);
+                    save(); render();
+                });
+
+                body.appendChild(row);
+            });
+        }
+
+        // --- Add city autocomplete -------------------------------------------
+        const input = document.getElementById('wcSearch');
+        const sug = document.getElementById('wcSuggest');
+        let activeSug = -1;
+        function showSug(q) {
+            q = q.trim().toLowerCase();
+            if (!q) { sug.classList.remove('open'); sug.innerHTML=''; return; }
+            const items = ALL_ZONES.filter(z => z.toLowerCase().includes(q) || z.split('/').pop().replace(/_/g,' ').toLowerCase().includes(q)).slice(0, 12);
+            if (!items.length) { sug.classList.remove('open'); sug.innerHTML=''; return; }
+            sug.innerHTML = items.map((z,i) => {
+                const city = z.split('/').pop().replace(/_/g,' ');
+                return `<div data-zone="${z}" data-i="${i}"><strong>${city}</strong> <span style="color:var(--text-muted);font-size:.75rem">${z}</span></div>`;
+            }).join('');
+            sug.classList.add('open');
+            sug.querySelectorAll('div').forEach(d => d.addEventListener('click', () => addZone(d.dataset.zone)));
+            activeSug = -1;
+        }
+        function addZone(z) {
+            if (!state.zones.includes(z)) {
+                state.zones.push(z); save(); render();
+            }
+            input.value = ''; sug.classList.remove('open');
+        }
+        input.addEventListener('input', () => showSug(input.value));
+        input.addEventListener('keydown', e => {
+            const items = sug.querySelectorAll('div');
+            if (e.key === 'ArrowDown') { e.preventDefault(); activeSug = Math.min(activeSug+1, items.length-1); items.forEach((el,i)=>el.classList.toggle('active', i===activeSug)); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); activeSug = Math.max(activeSug-1, 0); items.forEach((el,i)=>el.classList.toggle('active', i===activeSug)); }
+            else if (e.key === 'Enter') {
+                if (activeSug >= 0 && items[activeSug]) addZone(items[activeSug].dataset.zone);
+                else if (items.length) addZone(items[0].dataset.zone);
+            } else if (e.key === 'Escape') { sug.classList.remove('open'); }
+        });
+        document.addEventListener('click', e => { if (!e.target.closest('.wc-add')) sug.classList.remove('open'); });
+
+        // --- Toolbar buttons --------------------------------------------------
+        document.getElementById('wcNow').addEventListener('click', () => {
+            const now = new Date();
+            const primary = state.zones[0];
+            const p = new Intl.DateTimeFormat('en-US', {
+                timeZone: primary, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', hour12:false
+            }).formatToParts(now);
+            document.getElementById('wcDate').value = `${p.find(x=>x.type==='year').value}-${p.find(x=>x.type==='month').value}-${p.find(x=>x.type==='day').value}`;
+            let hh = +p.find(x=>x.type==='hour').value;
+            if (hh === 24) hh = 0;
+            state.selectedHour = hh;
+            save(); renderWeekStrip(); render();
+        });
+        document.getElementById('wcDate').addEventListener('change', () => { save(); renderWeekStrip(); render(); });
+        document.getElementById('wcFormat').addEventListener('click', (e) => {
+            state.mode = state.mode === '24' ? '12' : '24';
+            e.currentTarget.innerHTML = `<i class="bi bi-clock me-1"></i>${state.mode}h`;
+            save(); renderHeader(); render();
+        });
+        const weBtn = document.getElementById('wcWeekend');
+        function syncWeBtn() {
+            weBtn.classList.toggle('btn-primary', !!state.weekends);
+            weBtn.classList.toggle('btn-outline-secondary', !state.weekends);
+        }
+        weBtn.addEventListener('click', () => {
+            state.weekends = !state.weekends;
+            syncWeBtn(); save(); render();
+        });
+        syncWeBtn();
+
+        document.getElementById('wcReset').addEventListener('click', () => {
+            localStorage.removeItem(LS_KEY);
+            location.reload();
+        });
+
+        // Init
+        document.getElementById('wcFormat').innerHTML = `<i class="bi bi-clock me-1"></i>${state.mode}h`;
+        const today = new Date();
+        document.getElementById('wcDate').valueAsDate = today;
+        if (state.selectedHour == null) state.selectedHour = today.getHours();
+        renderHeader();
+        renderWeekStrip();
+        render();
+        // Update "current time" labels every 30s
+        setInterval(render, 30000);
+    })();
+    </script>
+</th:block>
+</body>
+</html>

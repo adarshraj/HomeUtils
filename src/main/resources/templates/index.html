@@ -3,21 +3,237 @@
       th:replace="~{layout :: layout('Dashboard', ~{::content})}">
 <body>
 <th:block th:fragment="content">
-    <h2 class="mb-1">HomeUtils</h2>
-    <p class="text-muted mb-4">Your personal collection of handy utilities.</p>
-    <div class="row g-3">
-        <div class="col-sm-6 col-md-4 col-lg-3" th:each="util : ${utilities}">
-            <a th:href="@{${util.route}}" class="text-decoration-none">
-                <div class="card utility-card h-100">
-                    <div class="card-body text-center py-4">
-                        <i th:class="'bi ' + ${util.iconClass} + ' fs-1 text-primary mb-3 d-block'"></i>
-                        <h5 class="card-title" th:text="${util.name}">Utility</h5>
-                        <p class="card-text text-muted small" th:text="${util.description}">Description</p>
-                    </div>
-                </div>
-            </a>
+    <style>
+        .hero {
+            position: relative;
+            padding: 3.2rem 0 2.4rem;
+            text-align: center;
+        }
+        .hero .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .4rem .9rem;
+            border-radius: 999px;
+            border: 1px solid var(--border-hi);
+            background: rgba(255,255,255,.04);
+            color: var(--text-dim);
+            font-size: .78rem;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            backdrop-filter: blur(8px);
+        }
+        .hero .eyebrow .dot {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--brand-3);
+            box-shadow: 0 0 10px var(--brand-3);
+            animation: pulse 2.2s ease-in-out infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+        .hero h1 {
+            font-size: clamp(2.4rem, 5.5vw, 4rem);
+            font-weight: 800;
+            line-height: 1.05;
+            margin: 1.1rem 0 .9rem;
+            letter-spacing: -0.03em;
+        }
+        .hero h1 .grad {
+            background: var(--grad-brand);
+            -webkit-background-clip: text; background-clip: text;
+            color: transparent;
+        }
+        .hero p.lead {
+            color: var(--text-dim);
+            max-width: 620px;
+            margin: 0 auto;
+            font-size: 1.05rem;
+        }
+        .search-wrap {
+            max-width: 540px;
+            margin: 1.8rem auto 0;
+            position: relative;
+        }
+        .search-wrap input {
+            width: 100%;
+            padding: .9rem 1.1rem .9rem 2.8rem;
+            border-radius: 999px;
+            background: rgba(12,10,28,.7);
+            border: 1px solid var(--border-hi);
+            color: var(--text);
+            font-size: .95rem;
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .search-wrap input::placeholder { color: var(--text-muted); }
+        .search-wrap input:focus {
+            outline: none;
+            border-color: rgba(168,85,247,.55);
+            box-shadow: 0 0 0 4px rgba(168,85,247,.16);
+        }
+        .search-wrap i {
+            position: absolute;
+            left: 1rem; top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+        .grid-header {
+            display: flex; align-items: baseline; justify-content: space-between;
+            margin: 2.4rem 0 1.2rem;
+        }
+        .grid-header h2 {
+            font-size: 1.05rem;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            font-weight: 600;
+            margin: 0;
+        }
+        .grid-header .count { color: var(--text-muted); font-size: .85rem; }
+
+        .util-tile {
+            display: block;
+            height: 100%;
+            text-decoration: none;
+            color: inherit;
+        }
+        .util-tile .card-body {
+            padding: .9rem 1rem;
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: flex-start;
+            gap: .85rem;
+        }
+        .util-tile .text-wrap { min-width: 0; flex: 1; }
+        .icon-badge {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 1.1rem;
+            color: #fff;
+            background: var(--grad-brand);
+            box-shadow: 0 8px 18px -10px rgba(168,85,247,.55), inset 0 0 0 1px rgba(255,255,255,.15);
+            flex-shrink: 0;
+            transition: transform .25s cubic-bezier(.2,.7,.2,1);
+        }
+        .utility-card:hover .icon-badge { transform: scale(1.06) rotate(-3deg); }
+
+        /* Cycle accent colors for variety */
+        .util-tile:nth-child(6n+1) .icon-badge { background: linear-gradient(135deg,#a855f7,#6366f1); box-shadow:0 10px 24px -10px rgba(168,85,247,.55), inset 0 0 0 1px rgba(255,255,255,.15); }
+        .util-tile:nth-child(6n+2) .icon-badge { background: linear-gradient(135deg,#22d3ee,#6366f1); box-shadow:0 10px 24px -10px rgba(34,211,238,.5),  inset 0 0 0 1px rgba(255,255,255,.15); }
+        .util-tile:nth-child(6n+3) .icon-badge { background: linear-gradient(135deg,#f472b6,#a855f7); box-shadow:0 10px 24px -10px rgba(244,114,182,.5), inset 0 0 0 1px rgba(255,255,255,.15); }
+        .util-tile:nth-child(6n+4) .icon-badge { background: linear-gradient(135deg,#34d399,#22d3ee); box-shadow:0 10px 24px -10px rgba(52,211,153,.45), inset 0 0 0 1px rgba(255,255,255,.15); }
+        .util-tile:nth-child(6n+5) .icon-badge { background: linear-gradient(135deg,#fbbf24,#f472b6); box-shadow:0 10px 24px -10px rgba(251,191,36,.45), inset 0 0 0 1px rgba(255,255,255,.15); }
+        .util-tile:nth-child(6n+6) .icon-badge { background: linear-gradient(135deg,#60a5fa,#a855f7); box-shadow:0 10px 24px -10px rgba(96,165,250,.5),  inset 0 0 0 1px rgba(255,255,255,.15); }
+
+        .util-tile h5 {
+            font-size: .92rem;
+            font-weight: 600;
+            margin: 0 0 .2rem;
+            letter-spacing: -0.005em;
+            line-height: 1.2;
+        }
+        .util-tile .desc {
+            font-size: .75rem;
+            color: var(--text-dim);
+            margin: 0;
+            line-height: 1.35;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .util-tile .arrow {
+            color: var(--text-muted);
+            flex-shrink: 0;
+            transition: transform .25s, color .25s;
+            font-size: .9rem;
+        }
+        .utility-card:hover .arrow { transform: translate(3px,-3px); color: var(--text); }
+
+        .util-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1rem;
+        }
+        .util-tile { display: block; text-decoration: none; color: inherit; height: 100%; }
+        .util-tile .utility-card { height: 100%; }
+        .util-tile .card-body { min-height: 118px; }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            border: 1px dashed var(--border-hi);
+            border-radius: var(--radius-lg);
+        }
+    </style>
+
+    <section class="hero">
+        <span class="eyebrow"><span class="dot"></span> All your tools, one place</span>
+        <h1>Handy utilities with a <span class="grad">beautiful</span> touch.</h1>
+        <p class="lead">A curated toolbox for developers and power users — encoders, converters, generators, and inspectors. Fast, local, and delightful.</p>
+        <div class="search-wrap">
+            <i class="bi bi-search"></i>
+            <input id="utilSearch" type="text" placeholder="Search utilities (e.g. base64, pdf, qr)…" autocomplete="off"/>
         </div>
+    </section>
+
+    <div class="grid-header">
+        <h2>Utilities</h2>
+        <span class="count"><span id="visibleCount" th:text="${#lists.size(utilities)}">0</span> of <span th:text="${#lists.size(utilities)}">0</span></span>
     </div>
+
+    <div class="util-grid" id="utilGrid">
+        <a th:each="util : ${utilities}"
+           th:href="@{${util.route}}"
+           th:attr="data-search=${#strings.toLowerCase(#strings.replace(util.name + ' ' + util.description, ',', ' '))}"
+           th:title="${util.name + ' — ' + util.description}"
+           data-bs-toggle="tooltip"
+           data-bs-placement="top"
+           class="util-tile">
+            <div class="card utility-card">
+                <div class="card-body">
+                    <span class="icon-badge"><i th:class="'bi ' + ${util.iconClass}"></i></span>
+                    <div class="text-wrap">
+                        <h5 th:text="${util.name}">Utility</h5>
+                        <p class="desc" th:text="${util.description}">Description</p>
+                    </div>
+                    <i class="bi bi-arrow-up-right arrow"></i>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div id="emptyState" class="empty-state mt-4" style="display:none">
+        <i class="bi bi-search fs-3 d-block mb-2"></i>
+        No utilities match your search.
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+                try { new bootstrap.Tooltip(el, { delay: { show: 250, hide: 50 }, container: 'body' }); } catch (e) { console.error(e); }
+            });
+        });
+        (function () {
+            const input = document.getElementById('utilSearch');
+            const tiles = document.querySelectorAll('#utilGrid > .util-tile');
+            const countEl = document.getElementById('visibleCount');
+            const empty = document.getElementById('emptyState');
+            input.addEventListener('input', () => {
+                const q = input.value.trim().toLowerCase();
+                let visible = 0;
+                tiles.forEach(t => {
+                    const haystack = t.dataset.search || '';
+                    const match = !q || haystack.includes(q);
+                    t.style.display = match ? '' : 'none';
+                    if (match) visible++;
+                });
+                countEl.textContent = visible;
+                empty.style.display = visible === 0 ? '' : 'none';
+            });
+        })();
+    </script>
 </th:block>
 </body>
 </html>

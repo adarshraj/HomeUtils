@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('Hash Generator', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">HomeUtils</a></li>
+            <li class="breadcrumb-item active">Hash Generator</li>
+        </ol>
+    </nav>
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-fingerprint me-2"></i>Hash Generator</h4>
+                </div>
+                <div class="card-body p-4">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#textTab">Text</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#fileTab">File</button></li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="textTab">
+                            <textarea id="hashInput" class="form-control mb-3" rows="4" placeholder="Type or paste text…"></textarea>
+                            <button class="btn btn-primary w-100" onclick="hashText()"><i class="bi bi-arrow-right-circle me-1"></i>Hash</button>
+                        </div>
+                        <div class="tab-pane fade" id="fileTab">
+                            <input id="hashFile" type="file" class="form-control mb-3"/>
+                            <button class="btn btn-primary w-100" onclick="hashFile()"><i class="bi bi-arrow-right-circle me-1"></i>Hash File</button>
+                        </div>
+                    </div>
+                    <div id="errorArea" class="mt-3 alert alert-danger d-none"></div>
+                    <div id="resultArea" class="mt-4 d-none">
+                        <div id="fileMeta" class="text-muted small mb-2"></div>
+                        <div id="results"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function renderHashes(hashes) {
+            const r = document.getElementById('results');
+            r.innerHTML = '';
+            Object.entries(hashes).forEach(([algo, val]) => {
+                r.insertAdjacentHTML('beforeend',
+                    `<div class="mb-2">
+                        <label class="form-label fw-semibold mb-1">${algo}</label>
+                        <div class="input-group">
+                            <input class="form-control font-monospace small" readonly value="${val}"/>
+                            <button class="btn btn-outline-secondary" onclick="navigator.clipboard.writeText('${val}')"><i class="bi bi-clipboard"></i></button>
+                        </div>
+                    </div>`);
+            });
+            document.getElementById('resultArea').classList.remove('d-none');
+        }
+        async function hashText() {
+            const input = document.getElementById('hashInput').value;
+            const err = document.getElementById('errorArea'); err.classList.add('d-none');
+            const resp = await fetch('/utils/hash/text', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({input})
+            });
+            const data = await resp.json();
+            if (!resp.ok || data.error) { err.textContent = data.error || 'Error'; err.classList.remove('d-none'); return; }
+            document.getElementById('fileMeta').textContent = '';
+            renderHashes(data.hashes);
+        }
+        async function hashFile() {
+            const f = document.getElementById('hashFile').files[0];
+            const err = document.getElementById('errorArea'); err.classList.add('d-none');
+            if (!f) { err.textContent = 'Choose a file.'; err.classList.remove('d-none'); return; }
+            const fd = new FormData(); fd.append('file', f);
+            const resp = await fetch('/utils/hash/file', { method: 'POST', body: fd });
+            const data = await resp.json();
+            if (!resp.ok || data.error) { err.textContent = data.error || 'Error'; err.classList.remove('d-none'); return; }
+            document.getElementById('fileMeta').textContent = `${data.filename} — ${data.size} bytes`;
+            renderHashes(data.hashes);
+        }
+    </script>
+</th:block>
+</body>
+</html>

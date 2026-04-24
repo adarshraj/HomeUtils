@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout :: layout('Time Calculator', ~{::content})}">
+<body>
+<th:block th:fragment="content">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a th:href="@{/}">HomeUtils</a></li>
+            <li class="breadcrumb-item active">Time Calculator</li>
+        </ol>
+    </nav>
+
+    <style>
+        .tc-tabs { display: flex; gap: .4rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+        .tc-tab {
+            padding: .55rem 1rem;
+            border-radius: 999px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: .85rem;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .tc-tab:hover { color: var(--text); border-color: var(--border-hi); }
+        .tc-tab.active {
+            background: var(--grad-brand);
+            color: #fff;
+            border-color: transparent;
+            box-shadow: 0 8px 20px -10px rgba(168,85,247,.55);
+        }
+        .tc-panel { display: none; }
+        .tc-panel.active { display: block; animation: fadeIn .2s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+        .tc-dur-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: .6rem;
+        }
+        .tc-dur-grid label { display: block; font-size: .75rem; color: var(--text-dim); margin-bottom: .3rem; }
+        .tc-dur-grid input {
+            background: rgba(8,6,18,.6); border: 1px solid var(--border);
+            color: var(--text); border-radius: var(--radius-md);
+            padding: .55rem .7rem; width: 100%;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .tc-op-switch {
+            display: inline-flex;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 3px;
+        }
+        .tc-op-switch button {
+            border: none; background: transparent;
+            color: var(--text-dim);
+            padding: .35rem .9rem;
+            font-size: .82rem;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+        .tc-op-switch button.active {
+            background: var(--grad-brand);
+            color: #fff;
+        }
+        .tc-datetime {
+            background: rgba(8,6,18,.6); border: 1px solid var(--border);
+            color: var(--text); border-radius: var(--radius-md);
+            padding: .6rem .8rem; font-family: 'JetBrains Mono', monospace;
+            color-scheme: dark; width: 100%;
+        }
+        .tc-result {
+            margin-top: 1.4rem;
+            padding: 1.2rem 1.3rem;
+            border-radius: var(--radius-lg);
+            background: var(--grad-brand-soft);
+            border: 1px solid rgba(168,85,247,.25);
+        }
+        .tc-result .big {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: var(--text);
+            word-break: break-all;
+        }
+        .tc-result .lbl {
+            font-size: .72rem;
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--text-dim);
+            margin-bottom: .35rem;
+        }
+        .tc-detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap: .8rem; margin-top: 1rem; }
+        .tc-detail .item {
+            background: rgba(8,6,18,.4); border: 1px solid var(--border);
+            border-radius: var(--radius-md); padding: .65rem .85rem;
+        }
+        .tc-detail .item .k { font-size: .7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+        .tc-detail .item .v { font-family: 'JetBrains Mono', monospace; color: var(--text); font-size: .95rem; margin-top: .2rem; }
+        .tc-error { color: var(--danger); font-size: .85rem; margin-top: .8rem; }
+    </style>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card">
+                <div class="card-header bg-primary">
+                    <h4 class="mb-0"><i class="bi bi-calculator me-2"></i>Time Calculator</h4>
+                </div>
+                <div class="card-body">
+                    <div class="tc-tabs">
+                        <button class="tc-tab active" data-panel="add">Date ± Duration</button>
+                        <button class="tc-tab" data-panel="diff">Date − Date</button>
+                        <button class="tc-tab" data-panel="dur">Duration ± Duration</button>
+                    </div>
+
+                    <!-- Panel 1: Date + Duration = Date -->
+                    <div class="tc-panel active" id="panel-add">
+                        <div class="mb-3">
+                            <label class="form-label">Start date &amp; time</label>
+                            <input type="datetime-local" id="a_start" class="tc-datetime" step="1"/>
+                        </div>
+                        <div class="mb-3 d-flex align-items-center gap-3 flex-wrap">
+                            <div class="tc-op-switch" role="group">
+                                <button type="button" class="active" data-op="+">+ Add</button>
+                                <button type="button" data-op="-">− Subtract</button>
+                            </div>
+                        </div>
+                        <div class="tc-dur-grid mb-3">
+                            <div><label>Years</label>  <input type="number" id="a_Y" value="0"/></div>
+                            <div><label>Months</label> <input type="number" id="a_M" value="0"/></div>
+                            <div><label>Weeks</label>  <input type="number" id="a_W" value="0"/></div>
+                            <div><label>Days</label>   <input type="number" id="a_D" value="0"/></div>
+                            <div><label>Hours</label>  <input type="number" id="a_h" value="0"/></div>
+                            <div><label>Minutes</label><input type="number" id="a_m" value="0"/></div>
+                            <div><label>Seconds</label><input type="number" id="a_s" value="0"/></div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" onclick="calcAdd()"><i class="bi bi-arrow-right me-1"></i>Calculate</button>
+                            <button class="btn btn-outline-secondary" onclick="setNow('a_start')"><i class="bi bi-clock me-1"></i>Now</button>
+                        </div>
+                        <div id="addResult" class="tc-result d-none">
+                            <div class="lbl">Result</div>
+                            <div class="big" id="addBig">—</div>
+                            <div class="tc-detail" id="addDetail"></div>
+                        </div>
+                        <div id="addErr" class="tc-error"></div>
+                    </div>
+
+                    <!-- Panel 2: Difference between two dates -->
+                    <div class="tc-panel" id="panel-diff">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Start</label>
+                                <input type="datetime-local" id="d_start" class="tc-datetime" step="1"/>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">End</label>
+                                <input type="datetime-local" id="d_end" class="tc-datetime" step="1"/>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-primary" onclick="calcDiff()"><i class="bi bi-calculator me-1"></i>Compute</button>
+                            <button class="btn btn-outline-secondary" onclick="setNow('d_start')">Start = Now</button>
+                            <button class="btn btn-outline-secondary" onclick="setNow('d_end')">End = Now</button>
+                        </div>
+                        <div id="diffResult" class="tc-result d-none">
+                            <div class="lbl">Duration</div>
+                            <div class="big" id="diffBig">—</div>
+                            <div class="tc-detail" id="diffDetail"></div>
+                        </div>
+                        <div id="diffErr" class="tc-error"></div>
+                    </div>
+
+                    <!-- Panel 3: Duration + Duration -->
+                    <div class="tc-panel" id="panel-dur">
+                        <p class="text-muted" style="font-size:.85rem">Enter two durations and pick the operation.</p>
+                        <div class="mb-2"><strong style="color:var(--text)">Duration A</strong></div>
+                        <div class="tc-dur-grid mb-3">
+                            <div><label>Days</label>   <input type="number" id="x_D" value="0"/></div>
+                            <div><label>Hours</label>  <input type="number" id="x_h" value="0"/></div>
+                            <div><label>Minutes</label><input type="number" id="x_m" value="0"/></div>
+                            <div><label>Seconds</label><input type="number" id="x_s" value="0"/></div>
+                        </div>
+                        <div class="mb-3 d-flex align-items-center gap-3 flex-wrap">
+                            <div class="tc-op-switch" role="group">
+                                <button type="button" class="active" data-op2="+">+ Add</button>
+                                <button type="button" data-op2="-">− Subtract</button>
+                            </div>
+                        </div>
+                        <div class="mb-2"><strong style="color:var(--text)">Duration B</strong></div>
+                        <div class="tc-dur-grid mb-3">
+                            <div><label>Days</label>   <input type="number" id="y_D" value="0"/></div>
+                            <div><label>Hours</label>  <input type="number" id="y_h" value="0"/></div>
+                            <div><label>Minutes</label><input type="number" id="y_m" value="0"/></div>
+                            <div><label>Seconds</label><input type="number" id="y_s" value="0"/></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="calcDur()"><i class="bi bi-arrow-right me-1"></i>Calculate</button>
+                        <div id="durResult" class="tc-result d-none">
+                            <div class="lbl">Result</div>
+                            <div class="big" id="durBig">—</div>
+                            <div class="tc-detail" id="durDetail"></div>
+                        </div>
+                        <div id="durErr" class="tc-error"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---- tabs ----
+        document.querySelectorAll('.tc-tab').forEach(t => t.addEventListener('click', () => {
+            document.querySelectorAll('.tc-tab').forEach(x => x.classList.remove('active'));
+            document.querySelectorAll('.tc-panel').forEach(x => x.classList.remove('active'));
+            t.classList.add('active');
+            document.getElementById('panel-' + t.dataset.panel).classList.add('active');
+        }));
+        // op switches
+        document.querySelectorAll('[data-op]').forEach(b => b.addEventListener('click', () => {
+            b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+        }));
+        document.querySelectorAll('[data-op2]').forEach(b => b.addEventListener('click', () => {
+            b.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('active'));
+            b.classList.add('active');
+        }));
+
+        // ---- helpers ----
+        function pad(n, w=2) { return String(Math.abs(n)).padStart(w,'0'); }
+        function localNowString() {
+            const d = new Date();
+            const p = (n) => String(n).padStart(2,'0');
+            return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+        }
+        function setNow(id) { document.getElementById(id).value = localNowString(); }
+
+        function fmtDateTime(d) {
+            const p = (n) => String(n).padStart(2,'0');
+            return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+        }
+
+        function humanDuration(ms) {
+            const neg = ms < 0; ms = Math.abs(ms);
+            const totalSec = Math.floor(ms/1000);
+            const d = Math.floor(totalSec / 86400);
+            const h = Math.floor((totalSec % 86400) / 3600);
+            const m = Math.floor((totalSec % 3600) / 60);
+            const s = totalSec % 60;
+            let parts = [];
+            if (d) parts.push(d + 'd');
+            if (h) parts.push(h + 'h');
+            if (m) parts.push(m + 'm');
+            if (s || !parts.length) parts.push(s + 's');
+            return (neg ? '-' : '') + parts.join(' ');
+        }
+
+        // Break "start → end" into calendar parts (Y,M,W,D...) like date-fns formatDistance
+        function calendarBreakdown(start, end) {
+            let neg = false;
+            if (end < start) { [start, end] = [end, start]; neg = true; }
+            let y = end.getFullYear() - start.getFullYear();
+            let mo = end.getMonth() - start.getMonth();
+            let d = end.getDate() - start.getDate();
+            let h = end.getHours() - start.getHours();
+            let mi = end.getMinutes() - start.getMinutes();
+            let s = end.getSeconds() - start.getSeconds();
+            if (s < 0) { s += 60; mi--; }
+            if (mi < 0) { mi += 60; h--; }
+            if (h < 0) { h += 24; d--; }
+            if (d < 0) {
+                const prev = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+                d += prev; mo--;
+            }
+            if (mo < 0) { mo += 12; y--; }
+            return { sign: neg ? -1 : 1, y, mo, d, h, mi, s };
+        }
+
+        // ---- Panel 1: Date ± Duration ----
+        function calcAdd() {
+            const err = document.getElementById('addErr'); err.textContent = '';
+            try {
+                const startStr = document.getElementById('a_start').value;
+                if (!startStr) throw new Error('Enter a start date/time.');
+                const start = new Date(startStr);
+                if (isNaN(start)) throw new Error('Invalid start date/time.');
+                const op = document.querySelector('[data-op].active').dataset.op === '-' ? -1 : 1;
+                const Y = +document.getElementById('a_Y').value || 0;
+                const M = +document.getElementById('a_M').value || 0;
+                const W = +document.getElementById('a_W').value || 0;
+                const D = +document.getElementById('a_D').value || 0;
+                const h = +document.getElementById('a_h').value || 0;
+                const m = +document.getElementById('a_m').value || 0;
+                const s = +document.getElementById('a_s').value || 0;
+
+                const r = new Date(start);
+                r.setFullYear(r.getFullYear() + op*Y);
+                r.setMonth(r.getMonth() + op*M);
+                r.setDate(r.getDate() + op*(W*7 + D));
+                r.setHours(r.getHours() + op*h);
+                r.setMinutes(r.getMinutes() + op*m);
+                r.setSeconds(r.getSeconds() + op*s);
+
+                document.getElementById('addBig').textContent = fmtDateTime(r);
+                const diffMs = r - start;
+                const detail = document.getElementById('addDetail');
+                detail.innerHTML = `
+                    <div class="item"><div class="k">ISO 8601</div><div class="v">${r.toISOString()}</div></div>
+                    <div class="item"><div class="k">Weekday</div><div class="v">${r.toLocaleDateString(undefined,{weekday:'long'})}</div></div>
+                    <div class="item"><div class="k">Epoch (s)</div><div class="v">${Math.floor(r.getTime()/1000)}</div></div>
+                    <div class="item"><div class="k">Net change</div><div class="v">${humanDuration(diffMs)}</div></div>
+                `;
+                document.getElementById('addResult').classList.remove('d-none');
+            } catch (e) { err.textContent = e.message; document.getElementById('addResult').classList.add('d-none'); }
+        }
+
+        // ---- Panel 2: Date - Date ----
+        function calcDiff() {
+            const err = document.getElementById('diffErr'); err.textContent = '';
+            try {
+                const a = document.getElementById('d_start').value;
+                const b = document.getElementById('d_end').value;
+                if (!a || !b) throw new Error('Enter both start and end.');
+                const start = new Date(a), end = new Date(b);
+                if (isNaN(start) || isNaN(end)) throw new Error('Invalid date/time.');
+                const ms = end - start;
+                const c = calendarBreakdown(start, end);
+                const parts = [];
+                if (c.y)  parts.push(c.y  + 'y');
+                if (c.mo) parts.push(c.mo + 'mo');
+                if (c.d)  parts.push(c.d  + 'd');
+                if (c.h)  parts.push(c.h  + 'h');
+                if (c.mi) parts.push(c.mi + 'm');
+                if (c.s || !parts.length) parts.push(c.s + 's');
+                document.getElementById('diffBig').textContent = (c.sign<0?'-':'') + parts.join(' ');
+
+                const absSec = Math.abs(Math.floor(ms/1000));
+                document.getElementById('diffDetail').innerHTML = `
+                    <div class="item"><div class="k">Total seconds</div><div class="v">${absSec.toLocaleString()}</div></div>
+                    <div class="item"><div class="k">Total minutes</div><div class="v">${(absSec/60).toLocaleString(undefined,{maximumFractionDigits:2})}</div></div>
+                    <div class="item"><div class="k">Total hours</div><div class="v">${(absSec/3600).toLocaleString(undefined,{maximumFractionDigits:3})}</div></div>
+                    <div class="item"><div class="k">Total days</div><div class="v">${(absSec/86400).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                    <div class="item"><div class="k">Total weeks</div><div class="v">${(absSec/604800).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                    <div class="item"><div class="k">HH:MM:SS</div><div class="v">${(c.sign<0?'-':'')}${pad(Math.floor(absSec/3600))}:${pad(Math.floor((absSec%3600)/60))}:${pad(absSec%60)}</div></div>
+                `;
+                document.getElementById('diffResult').classList.remove('d-none');
+            } catch (e) { err.textContent = e.message; document.getElementById('diffResult').classList.add('d-none'); }
+        }
+
+        // ---- Panel 3: Duration ± Duration ----
+        function durToSec(D, h, m, s) { return D*86400 + h*3600 + m*60 + s; }
+        function calcDur() {
+            const err = document.getElementById('durErr'); err.textContent = '';
+            try {
+                const op = document.querySelector('[data-op2].active').dataset.op2 === '-' ? -1 : 1;
+                const a = durToSec(+document.getElementById('x_D').value||0, +document.getElementById('x_h').value||0, +document.getElementById('x_m').value||0, +document.getElementById('x_s').value||0);
+                const b = durToSec(+document.getElementById('y_D').value||0, +document.getElementById('y_h').value||0, +document.getElementById('y_m').value||0, +document.getElementById('y_s').value||0);
+                const total = a + op*b;
+                const abs = Math.abs(total);
+                const d = Math.floor(abs/86400);
+                const h = Math.floor((abs%86400)/3600);
+                const m = Math.floor((abs%3600)/60);
+                const s = abs%60;
+                const sign = total<0 ? '-' : '';
+                document.getElementById('durBig').textContent = `${sign}${d}d ${h}h ${m}m ${s}s`;
+                document.getElementById('durDetail').innerHTML = `
+                    <div class="item"><div class="k">HH:MM:SS</div><div class="v">${sign}${pad(Math.floor(abs/3600))}:${pad(Math.floor((abs%3600)/60))}:${pad(abs%60)}</div></div>
+                    <div class="item"><div class="k">Total seconds</div><div class="v">${total.toLocaleString()}</div></div>
+                    <div class="item"><div class="k">Total minutes</div><div class="v">${(total/60).toLocaleString(undefined,{maximumFractionDigits:3})}</div></div>
+                    <div class="item"><div class="k">Total hours</div><div class="v">${(total/3600).toLocaleString(undefined,{maximumFractionDigits:4})}</div></div>
+                    <div class="item"><div class="k">ISO 8601</div><div class="v">${(total<0?'-':'')}P${d?d+'D':''}${(h||m||s)?'T':''}${h?h+'H':''}${m?m+'M':''}${s?s+'S':''}</div></div>
+                `;
+                document.getElementById('durResult').classList.remove('d-none');
+            } catch (e) { err.textContent = e.message; document.getElementById('durResult').classList.add('d-none'); }
+        }
+
+        // default values
+        setNow('a_start');
+        setNow('d_start');
+        setNow('d_end');
+    </script>
+</th:block>
+</body>
+</html>
