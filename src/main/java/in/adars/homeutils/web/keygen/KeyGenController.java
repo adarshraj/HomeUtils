@@ -24,6 +24,17 @@ public class KeyGenController {
         return "keygen/index";
     }
 
+    @PostMapping("/generate-ssh")
+    @ResponseBody
+    public ResponseEntity<?> generateSsh(@RequestBody Map<String, String> body) {
+        String algorithm = body.getOrDefault("algorithm", "ed25519").trim();
+        try {
+            return ResponseEntity.ok(keyGenService.generateSshKeyPair(algorithm));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/generate")
     @ResponseBody
     public ResponseEntity<?> generate(@RequestBody Map<String, String> body) {

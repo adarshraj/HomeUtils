@@ -34,6 +34,11 @@
                                 <option value="uuid">UUID v4</option>
                                 <option value="uuid-nodash">UUID v4 (no dashes)</option>
                             </optgroup>
+                            <optgroup label="SSH Key Pairs">
+                                <option value="ssh-ed25519">OpenSSH Ed25519 (recommended)</option>
+                                <option value="ssh-rsa2048">OpenSSH RSA 2048-bit</option>
+                                <option value="ssh-rsa4096">OpenSSH RSA 4096-bit</option>
+                            </optgroup>
                         </select>
                     </div>
 
@@ -62,8 +67,8 @@
                         </div>
                     </div>
 
-                    <!-- Count -->
-                    <div class="mb-3">
+                    <!-- Count (hidden for SSH) -->
+                    <div class="mb-3" id="countSection">
                         <label class="form-label fw-semibold">Count</label>
                         <input id="keyCount" type="number" class="form-control" value="1" min="1" max="50" style="max-width:120px"/>
                     </div>
@@ -74,7 +79,7 @@
 
                     <div id="errorArea" class="mt-3 alert alert-danger d-none"></div>
 
-                    <!-- Results -->
+                    <!-- Results: regular keys -->
                     <div id="resultArea" class="mt-4 d-none">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h5 class="mb-0">Generated Keys</h5>
@@ -83,6 +88,29 @@
                             </button>
                         </div>
                         <div id="keyList"></div>
+                    </div>
+
+                    <!-- Results: SSH key pair -->
+                    <div id="sshResultArea" class="mt-4 d-none">
+                        <h5 class="mb-3">Generated SSH Key Pair</h5>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0">Public Key <span class="text-muted small fw-normal">(paste into authorized_keys)</span></label>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="copySshField('sshPublicKey', this)"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                            </div>
+                            <textarea id="sshPublicKey" class="form-control font-monospace" rows="3" readonly></textarea>
+                        </div>
+                        <div class="mb-1">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label class="form-label fw-semibold mb-0">Private Key <span class="text-muted small fw-normal">(save as ~/.ssh/id_ed25519 or id_rsa, chmod 600)</span></label>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="copySshField('sshPrivateKey', this)"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                            </div>
+                            <textarea id="sshPrivateKey" class="form-control font-monospace" rows="10" readonly></textarea>
+                        </div>
+                        <div class="alert alert-warning mt-3 mb-0 py-2 small">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Keys are generated in your browser session and never stored on the server. Save your private key securely.
+                        </div>
                     </div>
                 </div>
             </div>
@@ -127,19 +155,39 @@
     </div>
 
     <script>
+        function isSsh(type) { return type.startsWith('ssh-'); }
+
         function onTypeChange() {
             const type = document.getElementById('keyType').value;
             document.getElementById('randomOptions').style.display = type === 'random' ? '' : 'none';
+            document.getElementById('countSection').style.display = isSsh(type) ? 'none' : '';
         }
         onTypeChange();
 
         async function generate() {
             const type = document.getElementById('keyType').value;
+            const err = document.getElementById('errorArea');
+            err.classList.add('d-none');
+            document.getElementById('resultArea').classList.add('d-none');
+            document.getElementById('sshResultArea').classList.add('d-none');
+
+            if (isSsh(type)) {
+                const algorithm = type.replace('ssh-', '');
+                const resp = await fetch('/utils/keygen/generate-ssh', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({algorithm})
+                });
+                const data = await resp.json();
+                if (!resp.ok || data.error) { err.textContent = data.error; err.classList.remove('d-none'); return; }
+                document.getElementById('sshPublicKey').value = data.publicKey;
+                document.getElementById('sshPrivateKey').value = data.privateKey;
+                document.getElementById('sshResultArea').classList.remove('d-none');
+                return;
+            }
+
             const count = parseInt(document.getElementById('keyCount').value) || 1;
             const encoding = document.getElementById('keyEncoding').value;
             const bytes = parseInt(document.getElementById('keyBytes').value);
-            const err = document.getElementById('errorArea');
-            err.classList.add('d-none');
 
             const resp = await fetch('/utils/keygen/generate', {
                 method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -150,7 +198,7 @@
 
             const list = document.getElementById('keyList');
             list.innerHTML = '';
-            data.keys.forEach((key, i) => {
+            data.keys.forEach((key) => {
                 const row = document.createElement('div');
                 row.className = 'input-group mb-2';
                 row.innerHTML = `
@@ -174,6 +222,13 @@
             const inputs = document.querySelectorAll('#keyList input');
             const text = Array.from(inputs).map(i => i.value).join('\n');
             navigator.clipboard.writeText(text);
+        }
+
+        function copySshField(id, btn) {
+            navigator.clipboard.writeText(document.getElementById(id).value);
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
+            setTimeout(() => btn.innerHTML = orig, 1500);
         }
 
         async function quickGen(preset) {
