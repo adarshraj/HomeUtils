@@ -1,6 +1,33 @@
 services:
   homeutils:
-    build: .
-    ports:
-      - "8730:8730"
+    image: ghcr.io/adarshraj/homeutils:latest
+    container_name: homeutils
     restart: unless-stopped
+    expose:
+      - "8730"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    cpus: 1.0
+    networks:
+      - platform_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.homeutils.rule=Host(`${HOMEUTILS_HOST:-homeutils.homelab.local}`)"
+      - "traefik.http.routers.homeutils.entrypoints=websecure"
+      - "traefik.http.routers.homeutils.tls=true"
+      - "traefik.http.services.homeutils.loadbalancer.server.port=8730"
+      - "traefik.http.routers.homeutils.middlewares=secure-headers@file"
+      - "traefik.http.routers.homeutils.service=homeutils"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8730/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+
+networks:
+  platform_proxy:
+    external: true
