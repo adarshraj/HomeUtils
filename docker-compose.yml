@@ -22,7 +22,7 @@ services:
       - "traefik.http.routers.homeutils.middlewares=secure-headers@file"
       - "traefik.http.routers.homeutils.service=homeutils"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8730/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8730/ || exit 1"]
       interval: 30s
       timeout: 5s
       start_period: 40s
