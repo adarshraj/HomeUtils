@@ -1,7 +1,7 @@
 services:
-  homeutils:
-    image: ghcr.io/adarshraj/homeutils:latest
-    container_name: homeutils
+  home-utils:
+    image: ghcr.io/adarshraj/home-utils:latest
+    container_name: home-utils
     restart: unless-stopped
     expose:
       - "8730"
@@ -15,12 +15,12 @@ services:
       - platform_proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.homeutils.rule=Host(`${HOMEUTILS_HOST:-homeutils.homelab.local}`)"
-      - "traefik.http.routers.homeutils.entrypoints=websecure"
-      - "traefik.http.routers.homeutils.tls=true"
-      - "traefik.http.services.homeutils.loadbalancer.server.port=8730"
-      - "traefik.http.routers.homeutils.middlewares=secure-headers@file"
-      - "traefik.http.routers.homeutils.service=homeutils"
+      - "traefik.http.routers.home-utils.rule=Host(`${HOME_UTILS_HOST:-home-utils.homelab.local}`)"
+      - "traefik.http.routers.home-utils.entrypoints=websecure"
+      - "traefik.http.routers.home-utils.tls=true"
+      - "traefik.http.services.home-utils.loadbalancer.server.port=8730"
+      - "traefik.http.routers.home-utils.middlewares=secure-headers@file"
+      - "traefik.http.routers.home-utils.service=home-utils"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8730/ || exit 1"]
       interval: 30s

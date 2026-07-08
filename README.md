@@ -1,4 +1,4 @@
-# HomeUtils
+# home-utils
 
 A self-hosted collection of everyday utilities, built with Spring Boot and Thymeleaf.
 

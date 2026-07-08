@@ -1,1 +1,1 @@
-rootProject.name = "HomeUtils"
+rootProject.name = "home-utils"
