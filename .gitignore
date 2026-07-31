@@ -6,3 +6,8 @@ build/
 .idea/
 .vscode/
 bin/
+
+# Local secrets — never commit these.
+.env
+.env.*
+!.env.example
