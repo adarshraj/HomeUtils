@@ -24,6 +24,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.webjars:bootstrap:5.3.3")
+    implementation("org.webjars.npm:bootstrap-icons:1.11.3")
     implementation("org.webjars:webjars-locator-core:0.59")
 
     // HEIC decoding

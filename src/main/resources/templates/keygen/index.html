@@ -21,7 +21,7 @@
                     <!-- Key Type Selection -->
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Key Type</label>
-                        <select id="keyType" class="form-select" onchange="onTypeChange()">
+                        <select id="keyType" class="form-select">
                             <optgroup label="HMAC Secrets">
                                 <option value="hmac-sha256">HMAC-SHA256 (256-bit)</option>
                                 <option value="hmac-sha384">HMAC-SHA384 (384-bit)</option>
@@ -73,7 +73,7 @@
                         <input id="keyCount" type="number" class="form-control" value="1" min="1" max="50" style="max-width:120px"/>
                     </div>
 
-                    <button class="btn btn-primary w-100" onclick="generate()">
+                    <button id="btnGenerate" class="btn btn-primary w-100">
                         <i class="bi bi-lightning-fill me-1"></i>Generate
                     </button>
 
@@ -83,7 +83,7 @@
                     <div id="resultArea" class="mt-4 d-none">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h5 class="mb-0">Generated Keys</h5>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="copyAll()">
+                            <button id="btnCopyAll" class="btn btn-sm btn-outline-secondary">
                                 <i class="bi bi-clipboard me-1"></i>Copy All
                             </button>
                         </div>
@@ -96,14 +96,14 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <label class="form-label fw-semibold mb-0">Public Key <span class="text-muted small fw-normal">(paste into authorized_keys)</span></label>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="copySshField('sshPublicKey', this)"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                                <button class="btn btn-sm btn-outline-secondary copySshFieldBtn" data-target="sshPublicKey"><i class="bi bi-clipboard me-1"></i>Copy</button>
                             </div>
                             <textarea id="sshPublicKey" class="form-control font-monospace" rows="3" readonly></textarea>
                         </div>
                         <div class="mb-1">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <label class="form-label fw-semibold mb-0">Private Key <span class="text-muted small fw-normal">(save as ~/.ssh/id_ed25519 or id_rsa, chmod 600)</span></label>
-                                <button class="btn btn-sm btn-outline-secondary" onclick="copySshField('sshPrivateKey', this)"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                                <button class="btn btn-sm btn-outline-secondary copySshFieldBtn" data-target="sshPrivateKey"><i class="bi bi-clipboard me-1"></i>Copy</button>
                             </div>
                             <textarea id="sshPrivateKey" class="form-control font-monospace" rows="10" readonly></textarea>
                         </div>
@@ -123,7 +123,7 @@
                             <i class="bi bi-shield-lock fs-2 text-success"></i>
                             <h6 class="mt-2">JWT Secret</h6>
                             <p class="text-muted small mb-2">256-bit HMAC-SHA256 key</p>
-                            <button class="btn btn-sm btn-outline-success" onclick="quickGen('hmac-sha256')">Generate</button>
+                            <button class="btn btn-sm btn-outline-success quickGenBtn" data-preset="hmac-sha256">Generate</button>
                             <div class="quick-result mt-2 small text-break" id="quick-hmac-sha256"></div>
                         </div>
                     </div>
@@ -134,7 +134,7 @@
                             <i class="bi bi-fingerprint fs-2 text-primary"></i>
                             <h6 class="mt-2">Session Key</h6>
                             <p class="text-muted small mb-2">64-byte random Base64</p>
-                            <button class="btn btn-sm btn-outline-primary" onclick="quickGen('session')">Generate</button>
+                            <button class="btn btn-sm btn-outline-primary quickGenBtn" data-preset="session">Generate</button>
                             <div class="quick-result mt-2 small text-break" id="quick-session"></div>
                         </div>
                     </div>
@@ -145,7 +145,7 @@
                             <i class="bi bi-hash fs-2 text-warning"></i>
                             <h6 class="mt-2">UUID v4</h6>
                             <p class="text-muted small mb-2">Random UUID</p>
-                            <button class="btn btn-sm btn-outline-warning" onclick="quickGen('uuid')">Generate</button>
+                            <button class="btn btn-sm btn-outline-warning quickGenBtn" data-preset="uuid">Generate</button>
                             <div class="quick-result mt-2 small text-break" id="quick-uuid"></div>
                         </div>
                     </div>
@@ -154,101 +154,7 @@
         </div>
     </div>
 
-    <script>
-        function isSsh(type) { return type.startsWith('ssh-'); }
-
-        function onTypeChange() {
-            const type = document.getElementById('keyType').value;
-            document.getElementById('randomOptions').style.display = type === 'random' ? '' : 'none';
-            document.getElementById('countSection').style.display = isSsh(type) ? 'none' : '';
-        }
-        onTypeChange();
-
-        async function generate() {
-            const type = document.getElementById('keyType').value;
-            const err = document.getElementById('errorArea');
-            err.classList.add('d-none');
-            document.getElementById('resultArea').classList.add('d-none');
-            document.getElementById('sshResultArea').classList.add('d-none');
-
-            if (isSsh(type)) {
-                const algorithm = type.replace('ssh-', '');
-                const resp = await fetch('/utils/keygen/generate-ssh', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({algorithm})
-                });
-                const data = await resp.json();
-                if (!resp.ok || data.error) { err.textContent = data.error; err.classList.remove('d-none'); return; }
-                document.getElementById('sshPublicKey').value = data.publicKey;
-                document.getElementById('sshPrivateKey').value = data.privateKey;
-                document.getElementById('sshResultArea').classList.remove('d-none');
-                return;
-            }
-
-            const count = parseInt(document.getElementById('keyCount').value) || 1;
-            const encoding = document.getElementById('keyEncoding').value;
-            const bytes = parseInt(document.getElementById('keyBytes').value);
-
-            const resp = await fetch('/utils/keygen/generate', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({type, count: String(count), encoding, bytes: String(bytes)})
-            });
-            const data = await resp.json();
-            if (!resp.ok || data.error) { err.textContent = data.error; err.classList.remove('d-none'); return; }
-
-            const list = document.getElementById('keyList');
-            list.innerHTML = '';
-            data.keys.forEach((key) => {
-                const row = document.createElement('div');
-                row.className = 'input-group mb-2';
-                row.innerHTML = `
-                    <input type="text" class="form-control font-monospace" value="${key}" readonly/>
-                    <button class="btn btn-outline-secondary" onclick="copyOne(this)" title="Copy">
-                        <i class="bi bi-clipboard"></i>
-                    </button>`;
-                list.appendChild(row);
-            });
-            document.getElementById('resultArea').classList.remove('d-none');
-        }
-
-        function copyOne(btn) {
-            const input = btn.closest('.input-group').querySelector('input');
-            navigator.clipboard.writeText(input.value);
-            btn.innerHTML = '<i class="bi bi-check"></i>';
-            setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i>', 1500);
-        }
-
-        function copyAll() {
-            const inputs = document.querySelectorAll('#keyList input');
-            const text = Array.from(inputs).map(i => i.value).join('\n');
-            navigator.clipboard.writeText(text);
-        }
-
-        function copySshField(id, btn) {
-            navigator.clipboard.writeText(document.getElementById(id).value);
-            const orig = btn.innerHTML;
-            btn.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
-            setTimeout(() => btn.innerHTML = orig, 1500);
-        }
-
-        async function quickGen(preset) {
-            let body;
-            if (preset === 'session') body = {type: 'random', count: '1', encoding: 'base64', bytes: '64'};
-            else body = {type: preset, count: '1', encoding: 'base64', bytes: '32'};
-
-            const resp = await fetch('/utils/keygen/generate', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(body)
-            });
-            const data = await resp.json();
-            if (data.keys && data.keys.length) {
-                const el = document.getElementById('quick-' + preset);
-                el.textContent = data.keys[0];
-                el.style.cursor = 'pointer';
-                el.onclick = () => { navigator.clipboard.writeText(data.keys[0]); el.textContent = 'Copied!'; setTimeout(() => el.textContent = data.keys[0], 1500); };
-            }
-        }
-    </script>
+    <script th:src="@{/js/keygen.js}"></script>
 </th:block>
 </body>
 </html>

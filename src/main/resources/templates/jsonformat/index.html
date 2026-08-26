@@ -33,23 +33,23 @@
                     <textarea id="fmtInput" class="form-control font-monospace" rows="16"
                               placeholder='{"key": "value"} or&#10;key: value'></textarea>
                     <div class="d-flex gap-2 mt-2">
-                        <button class="btn btn-primary" onclick="doFormat()"><i class="bi bi-magic me-1"></i>Format</button>
-                        <button class="btn btn-outline-secondary" onclick="clearFormat()"><i class="bi bi-x me-1"></i>Clear</button>
+                        <button id="btnFormat" class="btn btn-primary"><i class="bi bi-magic me-1"></i>Format</button>
+                        <button id="btnClearFormat" class="btn btn-outline-secondary"><i class="bi bi-x me-1"></i>Clear</button>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <label class="form-label fw-semibold mb-0">Formatted <span id="fmtLang" class="badge bg-secondary ms-1"></span></label>
                         <div class="d-flex gap-1">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="copyFmt('output')"><i class="bi bi-clipboard me-1"></i>Copy</button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="swapFmt()"><i class="bi bi-arrow-left-right me-1"></i>Swap converted</button>
+                            <button id="btnCopyOutput" class="btn btn-sm btn-outline-secondary"><i class="bi bi-clipboard me-1"></i>Copy</button>
+                            <button id="btnSwapFmt" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left-right me-1"></i>Swap converted</button>
                         </div>
                     </div>
                     <textarea id="fmtOutput" class="form-control font-monospace" rows="7" readonly></textarea>
                     <div class="mt-2">
                         <label class="form-label fw-semibold small text-muted">CONVERTED</label>
                         <textarea id="fmtConverted" class="form-control font-monospace" rows="7" readonly></textarea>
-                        <button class="btn btn-sm btn-outline-secondary mt-1" onclick="copyFmt('converted')"><i class="bi bi-clipboard me-1"></i>Copy converted</button>
+                        <button id="btnCopyConverted" class="btn btn-sm btn-outline-secondary mt-1"><i class="bi bi-clipboard me-1"></i>Copy converted</button>
                     </div>
                 </div>
             </div>
@@ -70,7 +70,7 @@
                               placeholder="Paste JSON or YAML…"></textarea>
                 </div>
             </div>
-            <button class="btn btn-primary mb-3" onclick="doDiff()"><i class="bi bi-file-diff me-1"></i>Compare</button>
+            <button id="btnCompareJson" class="btn btn-primary mb-3"><i class="bi bi-file-diff me-1"></i>Compare</button>
             <div id="diffError" class="alert alert-danger d-none"></div>
             <div id="diffStats" class="mb-2 d-none">
                 <span class="badge bg-success me-2"><span id="addedCount"></span> added</span>
@@ -86,54 +86,7 @@
         .diff-ctx  { color: #abb2bf; display: block; }
         #diffResult pre { padding: 1rem; font-size: 0.8rem; }
     </style>
-    <script>
-        async function doFormat() {
-            const input = document.getElementById('fmtInput').value;
-            const err = document.getElementById('fmtError');
-            err.classList.add('d-none');
-            const resp = await fetch('/utils/jsonformat/format', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({input})
-            });
-            const data = await resp.json();
-            if (!resp.ok || data.error) { err.textContent = data.error; err.classList.remove('d-none'); return; }
-            const isYaml = !input.trim().startsWith('{') && !input.trim().startsWith('[');
-            document.getElementById('fmtLang').textContent = isYaml ? 'YAML' : 'JSON';
-            document.getElementById('fmtOutput').value    = data.output;
-            document.getElementById('fmtConverted').value = data.converted;
-        }
-        function clearFormat() {
-            ['fmtInput','fmtOutput','fmtConverted'].forEach(id => document.getElementById(id).value = '');
-            document.getElementById('fmtError').classList.add('d-none');
-        }
-        function copyFmt(which) {
-            const id = which === 'output' ? 'fmtOutput' : 'fmtConverted';
-            navigator.clipboard.writeText(document.getElementById(id).value);
-        }
-        function swapFmt() {
-            const a = document.getElementById('fmtInput');
-            const b = document.getElementById('fmtConverted');
-            const tmp = a.value; a.value = b.value; b.value = tmp;
-        }
-        async function doDiff() {
-            const left  = document.getElementById('diffLeft').value;
-            const right = document.getElementById('diffRight').value;
-            const err   = document.getElementById('diffError');
-            err.classList.add('d-none');
-            const resp = await fetch('/utils/jsonformat/diff', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({left, right})
-            });
-            const data = await resp.json();
-            if (!resp.ok || data.error) { err.textContent = data.error; err.classList.remove('d-none'); return; }
-            const res = document.getElementById('diffResult');
-            res.innerHTML = data.html;
-            res.classList.remove('d-none');
-            document.getElementById('addedCount').textContent   = data.added;
-            document.getElementById('removedCount').textContent = data.removed;
-            document.getElementById('diffStats').classList.remove('d-none');
-        }
-    </script>
+    <script th:src="@{/js/jsonformat.js}"></script>
 </th:block>
 </body>
 </html>

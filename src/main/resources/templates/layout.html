@@ -7,11 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title th:text="${title} + ' — HomeUtils'">HomeUtils</title>
     <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.3/css/bootstrap.min.css}"/>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
-    <link rel="preconnect" href="https://fonts.googleapis.com"/>
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-    <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"/>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css}"/>
+    <link rel="stylesheet" th:href="@{/css/fonts.css}"/>
     <style>
         :root {
             --bg-0: #070713;
@@ -551,33 +548,6 @@
 </div>
 
 <script th:src="@{/webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js}"></script>
-<script>
-    (function () {
-        const LS = 'homeutils.sidebar.collapsed';
-        if (localStorage.getItem(LS) === '1') document.body.classList.add('sb-collapsed');
-        const collapse = document.getElementById('sbCollapse');
-        if (collapse) collapse.addEventListener('click', () => {
-            document.body.classList.toggle('sb-collapsed');
-            localStorage.setItem(LS, document.body.classList.contains('sb-collapsed') ? '1' : '0');
-        });
-        const open = document.getElementById('sbOpen');
-        const overlay = document.getElementById('sbOverlay');
-        if (open) open.addEventListener('click', () => document.body.classList.add('sb-mobile-open'));
-        if (overlay) overlay.addEventListener('click', () => document.body.classList.remove('sb-mobile-open'));
-        // Close drawer when clicking a link on mobile
-        document.querySelectorAll('.sidebar .sb-link').forEach(a => a.addEventListener('click', () => document.body.classList.remove('sb-mobile-open')));
-    })();
-
-    // Cursor-tracked glow on utility cards
-    document.addEventListener('mousemove', (e) => {
-        document.querySelectorAll('.utility-card').forEach(card => {
-            const r = card.getBoundingClientRect();
-            if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
-                card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
-                card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
-            }
-        });
-    });
-</script>
+<script th:src="@{/js/layout.js}"></script>
 </body>
 </html>
