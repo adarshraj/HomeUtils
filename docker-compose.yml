@@ -18,6 +18,7 @@ services:
       - "traefik.http.routers.home-utils.rule=Host(`${HOME_UTILS_HOST:-home-utils.homelab.local}`)"
       - "traefik.http.routers.home-utils.entrypoints=websecure"
       - "traefik.http.routers.home-utils.tls=true"
+      - "traefik.http.routers.home-utils.tls.certresolver=letsencrypt"
       - "traefik.http.services.home-utils.loadbalancer.server.port=8730"
       - "traefik.http.routers.home-utils.middlewares=ratelimit@file,secure-headers@file"
       - "traefik.http.routers.home-utils.service=home-utils"
