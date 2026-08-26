@@ -13,6 +13,6 @@ RUN ./gradlew bootJar --no-daemon -q
 # Stage 2: Runtime
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=builder /app/build/libs/HomeUtils-1.0.0.jar app.jar
+COPY --from=builder /app/build/libs/home-utils-1.0.0.jar app.jar
 EXPOSE 8730
 ENTRYPOINT ["java", "-jar", "app.jar"]
