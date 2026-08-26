@@ -20,7 +20,7 @@ services:
       - "traefik.http.routers.home-utils.tls=true"
       - "traefik.http.routers.home-utils.tls.certresolver=letsencrypt"
       - "traefik.http.services.home-utils.loadbalancer.server.port=8730"
-      - "traefik.http.routers.home-utils.middlewares=ratelimit@file,secure-headers@file"
+      - "traefik.http.routers.home-utils.middlewares=ratelimit@file,secure-headers-relaxed-csp@file"
       - "traefik.http.routers.home-utils.service=home-utils"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8730/ || exit 1"]
