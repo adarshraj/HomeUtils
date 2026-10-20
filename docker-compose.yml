@@ -1,6 +1,6 @@
 services:
   home-utils:
-    image: ghcr.io/adarshraj/home-utils:latest
+    image: ghcr.io/adarshraj/home-utils:${APP_VERSION:-latest}
     container_name: home-utils
     restart: unless-stopped
     expose:
